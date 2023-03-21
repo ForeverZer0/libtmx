@@ -1,4 +1,5 @@
 #include "TMX/cache.h"
+#include "TMX/error.h"
 #include "TMX/memory.h"
 #include "TMX/typedefs.h"
 #include "utils.h"
@@ -16,25 +17,33 @@ struct TMXkeyvalue
 
 struct TMXcache
 {
+    TMXflag flags;
     struct TMXkeyvalue tilesets;
     struct TMXkeyvalue templates;
     struct TMXkeyvalue images;
 };
 
 TMXbool
-tmxCacheGet(TMXcache *cache, const char *key, void **result, TMXflag target)
+tmxCacheGet(const TMXcache *cache, const char *key, void **result, TMXflag target)
 {
-    size_t len = strlen(key);
-    if (!cache || !key || !len || !*result)
+    if (!cache || !key || !*result || target == TMX_CACHE_NONE)
         return TMX_FALSE;
 
-    struct TMXkeyvalue *head, *entry;
+    size_t len = strlen(key);
+    if (!len)
+        return TMX_FALSE;
+
+    const struct TMXkeyvalue *head, *entry = NULL;
     switch (target)
     {
         case TMX_CACHE_TILESET: head = &cache->tilesets; break;
         case TMX_CACHE_TEMPLATE: head = &cache->templates; break;
         case TMX_CACHE_IMAGE: head = &cache->images; break;
-        default: return TMX_FALSE;
+        default:
+        {
+            tmxError(TMX_ERR_PARAM);
+            return TMX_FALSE;
+        }
     }
 
     HASH_FIND(hh, head, key, len, entry);
@@ -49,8 +58,11 @@ tmxCacheGet(TMXcache *cache, const char *key, void **result, TMXflag target)
 TMXbool
 tmxCacheAdd(TMXcache *cache, const char *key, void *value, TMXflag target)
 {
+    if (!cache || !key || !value || target == TMX_CACHE_NONE)
+        return TMX_FALSE;
+
     size_t len = strlen(key);
-    if (!key || !len || !value)
+    if (!len)
         return TMX_FALSE;
 
     struct TMXkeyvalue *head, *entry;
@@ -59,7 +71,11 @@ tmxCacheAdd(TMXcache *cache, const char *key, void *value, TMXflag target)
         case TMX_CACHE_TILESET: head = &cache->tilesets; break;
         case TMX_CACHE_TEMPLATE: head = &cache->templates; break;
         case TMX_CACHE_IMAGE: head = &cache->images; break;
-        default: return TMX_FALSE;
+        default:
+        {
+            tmxError(TMX_ERR_PARAM);
+            return TMX_FALSE;
+        }
     }
 
     entry        = tmxCalloc(1, sizeof(struct TMXkeyvalue));
@@ -69,11 +85,43 @@ tmxCacheAdd(TMXcache *cache, const char *key, void *value, TMXflag target)
     return TMX_TRUE;
 }
 
+TMXbool
+tmxCacheRemove(TMXcache *cache, const char *key, TMXflag target)
+{
+    if (!cache || !key || target == TMX_CACHE_NONE)
+        return TMX_FALSE;
+
+    size_t len = strlen(key);
+    if (!len)
+        return TMX_FALSE;
+
+    struct TMXkeyvalue *head, *entry = NULL;
+    switch (target)
+    {
+        case TMX_CACHE_TILESET: head = &cache->tilesets; break;
+        case TMX_CACHE_TEMPLATE: head = &cache->templates; break;
+        case TMX_CACHE_IMAGE: head = &cache->images; break;
+        default:
+        {
+            tmxError(TMX_ERR_PARAM);
+            return TMX_FALSE;
+        }
+    }
+
+    HASH_FIND(hh, head, key, len, entry);
+    if (entry)
+    {
+        HASH_DEL(head, entry);
+        return TMX_TRUE;
+    }
+    return TMX_FALSE;
+}
+
 size_t
 tmxCacheClear(TMXcache *cache, TMXflag targets)
 {
     if (!cache || targets == TMX_CACHE_NONE)
-        return;
+        return 0;
 
     size_t count = 0;
     struct TMXkeyvalue *head, *entry, *temp;
@@ -84,7 +132,7 @@ tmxCacheClear(TMXcache *cache, TMXflag targets)
         HASH_ITER(hh, head, entry, temp)
         {
             HASH_DEL(head, entry);
-            tmxFree(entry->key);
+            tmxFree((void *) entry->key);
             // TODO: Call free function
             count++;
         }
@@ -96,7 +144,7 @@ tmxCacheClear(TMXcache *cache, TMXflag targets)
         HASH_ITER(hh, head, entry, temp)
         {
             HASH_DEL(head, entry);
-            tmxFree(entry->key);
+            tmxFree((void *) entry->key);
             // TODO: Call free function
             count++;
         }
@@ -108,7 +156,7 @@ tmxCacheClear(TMXcache *cache, TMXflag targets)
         HASH_ITER(hh, head, entry, temp)
         {
             HASH_DEL(head, entry);
-            tmxFree(entry->key);
+            tmxFree((void *) entry->key);
             // TODO: Call free function
             count++;
         }
@@ -118,7 +166,7 @@ tmxCacheClear(TMXcache *cache, TMXflag targets)
 }
 
 size_t
-tmxCacheCount(TMXcache *cache, TMXflag targets)
+tmxCacheCount(const TMXcache *cache, TMXflag targets)
 {
     if (!cache || targets == TMX_CACHE_NONE)
         return 0;
@@ -138,9 +186,12 @@ tmxCacheCount(TMXcache *cache, TMXflag targets)
 }
 
 TMXcache *
-tmxCacheCreate(void)
+tmxCacheCreate(TMXflag targets)
 {
-    return tmxCalloc(1, sizeof(TMXcache));
+
+    TMXcache *cache = tmxCalloc(1, sizeof(TMXcache));
+    cache->flags    = targets;
+    return cache;
 }
 
 void
