@@ -13,20 +13,22 @@
 #define TMX_ENCODING_CSV    1
 #define TMX_ENCODING_BASE64 2
 
-size_t tmxBase64DecodedSize(const char *input, size_t inputLen);
+TMXbool tmxBase64IsValid(const char *input, size_t inputSize);
 
-size_t tmxBase64Decode(const char *input, size_t inputLen, void *output, size_t outputLen);
+size_t tmxBase64DecodedSize(const char *input, size_t inputSize);
 
-size_t tmxInflateGzip(const void *input, size_t inputLen, void *ouput, size_t ouputLen);
+size_t tmxBase64Decode(const char *input, size_t inputSize, void *output, size_t outputSize);
 
-size_t tmxInflateZlib(const void *input, size_t inputLen, void *ouput, size_t ouputLen);
+size_t tmxInflateGzip(const void *input, size_t inputSize, void *output, size_t outputSize);
 
-size_t tmxInflateZstd(const void *input, size_t inputLen, void *ouput, size_t ouputLen);
+size_t tmxInflateZlib(const void *input, size_t inputSize, void *output, size_t outputSize);
 
-size_t tmxCsvCount(const char *input, size_t inputLen);
+size_t tmxInflateZstd(const void *input, size_t inputSize, void *output, size_t outputSize);
 
-size_t tmxCsvDecode(const char *input, size_t inputLen, int *output, size_t outputCount);
+size_t tmxCsvCount(const char *input, size_t inputSize);
 
-size_t tmxInflate(const char *input, size_t inputLen, TMXenum compression, void *output, size_t outputLen);
+size_t tmxCsvDecode(const char *input, size_t inputSize, int *output, size_t outputCount);
+
+size_t tmxInflate(const char *input, size_t inputSize, TMXenum compression, void *output, size_t outputSize);
 
 #endif /* TMX_COMPRESSION_H */
