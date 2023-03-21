@@ -1,6 +1,9 @@
 #ifndef TMX_TYPEDEFS_H
 #define TMX_TYPEDEFS_H
 
+#define TMX_FALSE 0
+#define TMX_TRUE 1
+
 typedef int TMXbool;
 typedef int TMXenum;
 typedef unsigned int TMXflag;
