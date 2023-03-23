@@ -1,7 +1,7 @@
-#include "TMX/compression.h"
-#include "TMX/error.h"
-#include "TMX/memory.h"
-#include "utils.h"
+#include "tmx/compression.h"
+#include "internal.h"
+#include "tmx/error.h"
+#include "tmx/memory.h"
 
 #define MINIZ_NO_MALLOC
 #define MINIZ_NO_STDIO
@@ -142,14 +142,15 @@ tmxInflateZstd(const void *input, size_t inputSize, void *output, size_t outputS
 }
 
 size_t
-tmxInflate(const char *input, size_t inputSize, TMXenum compression, void *output, size_t outputSize)
+tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMXenum compression)
 {
     size_t result;
     size_t base64Size;
     void *base64Data;
 
-    base64Size = tmxBase64DecodedSize(input, inputSize);
-    base64Data = tmxMalloc(base64Size);
+    size_t outputSize = outputCount * sizeof(TMXgid);
+    base64Size        = tmxBase64DecodedSize(input, inputSize);
+    base64Data        = tmxMalloc(base64Size);
 
     switch (compression)
     {
@@ -167,6 +168,18 @@ tmxInflate(const char *input, size_t inputSize, TMXenum compression, void *outpu
     }
 
     tmxFree(base64Data);
+    result /= sizeof(TMXgid);
+
+    // TMX spec is always little-endian, so swap if host architecture uses big-endianness.
+#ifdef TMX_BIG_ENDIAN
+    size_t i;
+    TMXgid gid;
+    for (i = 0; i < result; i++)
+    {
+        gid     = output[i];
+        output[i] = TMX_ENDIAN_SWAP32(gid);
+    }
+#endif
     return result;
 }
 
@@ -185,25 +198,24 @@ tmxCsvCount(const char *input, size_t inputSize)
 }
 
 size_t
-tmxCsvDecode(const char *input, size_t inputSize, int *output, size_t outputCount)
+tmxCsvDecode(const char *input, size_t inputSize, TMXgid *output, size_t outputCount)
 {
     if (!input || !inputSize || !outputCount)
         return 0;
 
-    static const char *delim = ", \n";
+    static const char *delim = ", \t\r\n";
 
     size_t i  = 0;
-    char *str = tmxMalloc(inputSize + 1);
-    memcpy(str, input, inputSize);
-    str[inputSize] = '\0';
+    char *p   = tmxStringCopy(input, inputSize);
+    char *end = NULL;
 
-    char *token = strtok(str, delim);
+    char *token = strtok(p, delim);
     while (token && i < outputCount)
     {
-        output[i++] = atoi(token);
+        output[i++] = strtoul(token, &end, 10);
         token       = strtok(NULL, delim);
     }
 
-    tmxFree(str);
-    return i + 1;
+    tmxFree(p);
+    return i;
 }

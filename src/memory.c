@@ -1,7 +1,7 @@
 
-#include "TMX/memory.h"
-#include "TMX/error.h"
-#include "utils.h"
+#include "tmx/memory.h"
+#include "tmx/error.h"
+#include "internal.h"
 #include <stdlib.h>
 
 #ifdef TMX_DEBUG
@@ -38,18 +38,23 @@ tmxFreeImpl(void *memory, TMXuserptr user)
 }
 
 static TMXallocator memoryPool = {tmxMallocImpl, tmxReallocImpl, tmxCallocImpl, tmxFreeImpl};
-static TMXuserptr userPtr;
+static TMXuserptr userPtrValue;
 
-inline void *
+TMX_INLINE void *
 tmxMalloc(size_t size)
 {
-    void *ptr = memoryPool.malloc(size, userPtr);
+    if (!size)
+        return NULL;
+#ifdef TMX_DEBUG
+    allocationCount++;
+#endif
+    void *ptr = memoryPool.malloc(size, userPtrValue);
     if (!ptr)
         tmxError(TMX_ERR_MEMORY);
     return ptr;
 }
 
-inline void *
+TMX_INLINE void *
 tmxRealloc(void *previous, size_t newSize)
 {
 #ifdef TMX_DEBUG
@@ -59,32 +64,32 @@ tmxRealloc(void *previous, size_t newSize)
         deallocationCount++;
 #endif
 
-    void *ptr = memoryPool.realloc(previous, newSize, userPtr);
+    void *ptr = memoryPool.realloc(previous, newSize, userPtrValue);
     if (!ptr)
         tmxError(TMX_ERR_MEMORY);
     return ptr;
 }
 
-inline void *
+TMX_INLINE void *
 tmxCalloc(size_t elemCount, size_t elemSize)
 {
 #ifdef TMX_DEBUG
     allocationCount++;
 #endif
-    void *ptr = memoryPool.calloc(elemCount, elemSize, userPtr);
+    void *ptr = memoryPool.calloc(elemCount, elemSize, userPtrValue);
     if (!ptr)
         tmxError(TMX_ERR_MEMORY);
     return ptr;
 }
 
-inline void
+TMX_INLINE void
 tmxFree(void *memory)
 {
 #ifdef TMX_DEBUG
     if (memory)
         deallocationCount++;
 #endif
-    memoryPool.free(memory, userPtr);
+    memoryPool.free(memory, userPtrValue);
 }
 
 #ifdef TMX_DEBUG
