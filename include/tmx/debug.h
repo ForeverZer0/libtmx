@@ -7,6 +7,4 @@
 
 void tmxMemoryLeakCheck(void);
 
-TMXmap *tmxMapLoad(const char *filename);
-
 #endif /* TMX_DEBUG_H */

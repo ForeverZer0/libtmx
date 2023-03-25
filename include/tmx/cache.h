@@ -33,7 +33,7 @@
  * @param[out] result The address of a tileset pointer to store the result upon success.
  * @return @c TMX_TRUE when object was successfully retrieved, otherwise @c TMX_FALSE
  */
-#define tmxCacheTryGetTileset(cache, key, result) tmxCacheTryGet(cache, key, result, TMX_CACHE_TILESETS)
+#define tmxCacheTryGetTileset(cache, key, result) tmxCacheTryGet((cache), (key), (void**)(result), TMX_CACHE_TILESET)
 
 /**
  * Helper macro to retrieve a template from the cache.
@@ -42,7 +42,7 @@
  * @param[out] result The address of a template pointer to store the result upon success.
  * @return @c TMX_TRUE when object was successfully retrieved, otherwise @c TMX_FALSE
  */
-#define tmxCacheTryGetTemplate(cache, key, result) tmxCacheTryGet(cache, key, result, TMX_CACHE_TEMPLATE)
+#define tmxCacheTryGetTemplate(cache, key, result) tmxCacheTryGet((cache), (key), (void**)(result), TMX_CACHE_TEMPLATE)
 
 /**
  * Helper macro to retrieve a image from the cache.
@@ -51,7 +51,7 @@
  * @param[out] result The address of an image pointer to store the result upon success.
  * @return @c TMX_TRUE when object was successfully retrieved, otherwise @c TMX_FALSE
  */
-#define tmxCacheTryGetImage(cache, key, result) tmxCacheTryGet(cache, key, result, TMX_CACHE_IMAGE)
+#define tmxCacheTryGetImage(cache, key, result) tmxCacheTryGet((cache), (key), (void**)(result), TMX_CACHE_IMAGE)
 
 /**
  * Helper macro to add a tileset to the cache.
@@ -104,7 +104,7 @@ TMXbool tmxCacheAdd(TMXcache *cache, const char *key, void *obj, TMXflag target)
  * @return Indicates if an item was successfully found. When @c TMX_TRUE, the @a outResult will contain
  * a valid object, otherwise if @c TMX_FALSE it should not be used.
  */
-TMXbool tmxCacheTryGet(const TMXcache *cache, const char *key, void **result, TMXflag target);
+TMXbool tmxCacheTryGet(TMXcache *cache, const char *key, void **result, TMXflag target);
 
 /**
  * @brief Deletes an item of the specified type from the cache.
@@ -134,7 +134,7 @@ size_t tmxCacheClear(TMXcache *cache, TMXflag targets);
  *
  * @return The number of items in the cache of the specified type(s).
  */
-size_t tmxCacheCount(const TMXcache *cache, TMXflag targets);
+size_t tmxCacheCount(TMXcache *cache, TMXflag targets);
 
 /**
  * @brief Initializes a new instance of a cache and returns it.

@@ -126,13 +126,15 @@ tmxInflateGzip(const void *input, size_t inputSize, void *output, size_t outputS
         tmxErrorMessage(TMX_ERR_FORMAT, "Invalid length Gzip stream");
         return 0;
     }
-    return tinfl_decompress_mem_to_mem(output, outputSize, &input[GZIP_HEADER_SIZE], inputSize - GZIP_HEADER_SIZE, 0);
+    size_t result = tinfl_decompress_mem_to_mem(output, outputSize, &input[GZIP_HEADER_SIZE], inputSize - GZIP_HEADER_SIZE, 0);
+    return result == TINFL_STATUS_FAILED ? 0 : result;
 }
 
 size_t
 tmxInflateZlib(const void *input, size_t inputSize, void *output, size_t outputSize)
 {
-    return tinfl_decompress_mem_to_mem(output, outputSize, input, inputSize, TINFL_FLAG_PARSE_ZLIB_HEADER);
+    size_t result = tinfl_decompress_mem_to_mem(output, outputSize, input, inputSize, TINFL_FLAG_PARSE_ZLIB_HEADER);
+    return result == TINFL_STATUS_FAILED ? 0 : result;
 }
 
 size_t
@@ -144,13 +146,14 @@ tmxInflateZstd(const void *input, size_t inputSize, void *output, size_t outputS
 size_t
 tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMXenum compression)
 {
-    size_t result;
+    size_t result = 0;
     size_t base64Size;
     void *base64Data;
 
     size_t outputSize = outputCount * sizeof(TMXgid);
     base64Size        = tmxBase64DecodedSize(input, inputSize);
     base64Data        = tmxMalloc(base64Size);
+    base64Size        = tmxBase64Decode(input, inputSize, base64Data, base64Size);
 
     switch (compression)
     {
@@ -169,6 +172,7 @@ tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCou
 
     tmxFree(base64Data);
     result /= sizeof(TMXgid);
+    
 
     // TMX spec is always little-endian, so swap if host architecture uses big-endianness.
 #ifdef TMX_BIG_ENDIAN

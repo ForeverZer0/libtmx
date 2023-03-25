@@ -24,10 +24,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef UTHASH_H
 #define UTHASH_H
 
-#include "tmx/memory.h"
-#define uthash_malloc(sz)    tmxMalloc(sz)
-#define uthash_free(ptr, sz) tmxFree(ptr)
-
 #define UTHASH_VERSION 2.3.0
 
 #include <string.h>   /* memcmp, memset, strlen */

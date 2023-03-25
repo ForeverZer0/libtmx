@@ -8,10 +8,10 @@
  * 
  * @param[in] properties The properties instance to query.
  * @param[in] name The name of the property to retrieve.
- * @param[out] property A pointer that will be assigned the property value within the loop.
+ * @param[out] property A pointer that will be assigned the property value within the loop, or @c NULL if just testing for the presence of the property.
  * 
  * @return @ref TMX_TRUE if property was found, otherwise @ref TMX_FALSE. When true, @a property will contain
- * the value, otherwise it will be @c NULL.
+ * the value, otherwise it will be assigned @c NULL.
 */
 TMXbool tmxTryGetProperty(const TMXproperties *properties, const char *name, TMXproperty **property);
 
@@ -40,26 +40,6 @@ size_t tmxGetPropertyCount(const TMXproperties *properties);
  * @return The first property value, or @c NULL if empty.
 */
 TMXproperty *tmxGetPropertiesHead(const TMXproperties *properties);
-
-/**
- * @brief Adds a property value to the hash.
- * 
- * @param[in] properties The properties instance to add to.
- * @param[in] property The property to add, whose name must not exist in the hash.
- * 
- * @return @ref TMX_TRUE if @a property was successfully added, otherwise @ref TMX_FALSE.
-*/
-TMXbool tmxPropertiesAdd(TMXproperties *properties, TMXproperty *property);
-
-/**
- * @brief Removes a property value from the hash.
- * 
- * @param[in] properties The properties instance to remove from.
- * @param[in] name The name of the property to remove.
- * 
- * @return @ref TMX_TRUE if a property with @a name was found and successfully removed, otherwise @ref TMX_FALSE.
-*/
-TMXbool tmxPropertiesRemove(TMXproperties *properties, const char *name);
 
 /**
  * @brief Frees a properties object.

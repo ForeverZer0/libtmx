@@ -104,4 +104,13 @@ void *tmxCalloc(size_t elemCount, size_t elemSize);
  */
 void tmxFree(void *memory);
 
+void tmxFreeMap(TMXmap *map);
+void tmxFreeTileset(TMXtileset *tileset);
+void tmxFreeTemplate(TMXtemplate *template);
+void tmxFreeProperties(TMXproperties *properties);
+void tmxFreeObject(TMXobject *object);
+void tmxFreeLayer(TMXlayer *layer);
+void tmxFreeImage(TMXimage *image);
+
+
 #endif /* TMX_MEMORY_H */

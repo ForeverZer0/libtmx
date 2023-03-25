@@ -24,16 +24,6 @@ typedef struct TMXxmlreader TMXxmlreader;
 TMXxmlreader *tmxXmlReaderInit(const char *text, size_t bufferSize);
 
 /**
- * @brief Initializes a new parser from the XML contents at the specified path.
- *
- * @param[in] filename The path to the file to load.
- * @param[in] bufferSize The size of the internal buffers used for storing temporary values, element names, etc.
- *
- * @return The initialized parser state.
- */
-TMXxmlreader *tmxXmlReaderInitFromFile(const char *filename, size_t bufferSize);
-
-/**
  * @brief Frees the parser.
  *
  * @param[in] xml The parser state.
@@ -106,5 +96,28 @@ const char *tmxXmlElementName(const TMXxmlreader *xml);
  * @return @ref TMX_TRUE if scanning results are as expected, otherwise @ref TMX_FALSE.
 */
 TMXbool tmxXmlAssertEOF(TMXxmlreader *xml);
+
+/**
+ * @brief Skips the current element and all of its children.
+ * @param[in] xml The parser state. 
+ */
+void tmxXmlSkipElement(TMXxmlreader *xml);
+
+/**
+ * @brief Moves the parser to the beginning of an element.
+ * 
+ * @param[in] xml The parser state.
+ * @param[in] name A name of element to match, or @c NULL to the first element encountered.
+ */
+void tmxXmlMoveToElement(TMXxmlreader *xml, const char *name);
+
+/**
+ * @brief Asserts that the current element has the specified name, emitting a parsing error otherwise.
+ * 
+ * @param[in] xml The parser state.
+ * @param[in] name The element name to test.
+ * @return @ref TMX_TRUE if element name matches, otherwise @ref TMX_FALSE.
+ */
+TMXbool tmxXmlAssertElement(TMXxmlreader *xml, const char *name);
 
 #endif /* TMX_XML_H */

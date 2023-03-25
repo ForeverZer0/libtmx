@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+
 struct TMXxmlreader
 {
     yxml_t scanner;
@@ -58,6 +60,15 @@ tmxXmlMoveToContent(TMXxmlreader *xml)
     return TMX_FALSE;
 }
 
+TMXbool tmxXmlAssertElement(TMXxmlreader *xml, const char *name)
+{
+    if (strcmp(xml->scanner.elem, name) == 0)
+        return TMX_TRUE;
+
+    tmxErrorFormat(TMX_ERR_PARSE, "Expected <%s> element.", name);
+    return TMX_FALSE;
+}
+
 TMXbool
 tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
 {
@@ -78,6 +89,8 @@ tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
     }
     return TMX_FALSE;
 
+
+
     // do
     // {
     //     if (xml->token == YXML_ELEMEND)
@@ -89,7 +102,7 @@ tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
     //     *outName = xml->scanner.elem;
     //     *outNameSize = yxml_symlen(&xml->scanner, xml->scanner.elem);
     //     return TMX_TRUE;
-    // } while (tmxXmlMoveNext(xml));
+    // } while (tmxXmlNextToken(xml));
     // return TMX_FALSE;
 }
 
@@ -204,7 +217,7 @@ tmxXmlReaderFree(TMXxmlreader *reader)
 {
     if (!reader)
         return;
-
+    
     tmxFree(reader->buffer);
     tmxFree(reader->memory);
     if (reader->input)
@@ -226,32 +239,32 @@ tmxXmlReaderInit(const char *input, size_t bufferSize)
     return reader;
 }
 
-TMXxmlreader *
-tmxXmlReaderInitFromFile(const char *filename, size_t bufferSize)
-{
-    FILE *fp;
-    long len;
-    char *buffer;
-    TMXxmlreader *xml;
+void tmxXmlSkipElement(TMXxmlreader *xml)
+{   
+    const char *dummy_name;
+    size_t dummy_size;
 
-    fp = fopen(filename, "r");
-    fseek(fp, 0, SEEK_END);
-    len = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    buffer = tmxMalloc(len + 1);
-    fread(buffer, 1, len, fp);
-    buffer[len] = '\0';
-
-    xml = tmxXmlReaderInit(buffer, bufferSize);
-    if (!xml)
+    while (tmxXmlReadElement(xml, &dummy_name, &dummy_size))
     {
-        tmxFree(buffer);
-        return NULL;
     }
 
-    xml->input = buffer;
-    return xml;
+    if (tmxXmlMoveToContent(xml))
+        tmxXmlSkipElement(xml);
+}
+
+void tmxXmlMoveToElement(TMXxmlreader *xml, const char *name)
+{
+    do
+    {
+        if (xml->token == YXML_ELEMSTART)
+        {
+            if (!name)
+                return;
+
+            if (strcmp(name, xml->scanner.elem) == 0)
+                return;
+        }
+    } while (tmxXmlNextToken(xml));
 }
 
 TMXbool

@@ -15,14 +15,19 @@
 #define TMX_ASSERT assert
 #endif
 
-typedef struct TMXcontext
-{
-    const char *baseDir;
-    TMXcache *cache;
-    TMXmap *map;
-} TMXcontext;
+#include "tmx/memory.h"
+#define uthash_malloc(sz)    tmxMalloc(sz)
+#define uthash_free(ptr, sz) tmxFree(ptr)
+#include "uthash.h"
 
-#define TMX_CALLOC(type) ((type*)tmxCalloc(1, sizeof(type)))
+struct TMXproperties
+{
+    const char *key;
+    TMXproperty value;
+    UT_hash_handle hh;
+};
+
+#define TMX_CALLOC(type) ((type *) tmxCalloc(1, sizeof(type)))
 
 /**
  * @brief Compares two null-terminated strings for equality.
@@ -113,6 +118,17 @@ char *tmxStringCopy(const char *input, size_t inputSize);
 TMXbool tmxStringBool(const char *str);
 
 /**
+ * @brief Reads the contents of a file into a buffer.
+ *
+ * @param[in] filename The filename to read.
+ * @param[out] size A pointer to a variable to receive the number of bytes read.
+ * @return The file contents as a null-terminated string, or @c NULL if an error occurred.
+ *
+ * @note The caller is responsible for freeing the pointer with @ref tmxFree.
+ */
+char *tmxFileReadAll(const char *filename, size_t *size);
+
+/**
  * @brief Allocates and copies a zero-terminated string.
  * @param[in] input The string to duplicate.
  * @return A duplicate of the string, or @c NULL when @a input is @c NULL.
@@ -127,5 +143,33 @@ TMXbool tmxStringBool(const char *str);
  */
 #define tmxErrorUnknownEnum(enumName, value)                                                                                               \
     tmxErrorFormat(TMX_ERR_VALUE, "Unrecognized " enumName " \"%s\" specified.", value ? value : "")
+
+/**
+ * @brief Resolves a relative path to an absolute path, optionally with a base directory.
+ *
+ * @param[in] path The relative path that needs resolved.
+ * @param[in] baseDir The base directory from which the file is relative to in the Tiled project structure. May be @c NULL.
+ * @param[in,out] buffer A buffer to write the resolved path to.
+ * @param[in] bufferSize The maximum number of bytes that can be written to the @a buffer.
+ * 
+ * @return The number of bytes written to the @a buffer, or 0 when path could not be resolved.
+ */
+size_t tmxPathResolve(const char *path, const char *baseDir, char *buffer, size_t bufferSize);
+
+/**
+ * @brief Invokes the user-callback for image loading, if set.
+ * 
+ * @param[in] image The image that is loaded.
+ * @param[in] baseDir The base-directory from the map/tileset the image is being loaded from.
+ * @param[in] cache Optional cache that can store the result image.
+ */
+void tmxImageUserLoad(TMXimage *image, const char *baseDir, TMXcache *cache);
+
+/**
+ * @brief Invokes the user-callback to free an image, if set.
+ * 
+ * @param[in] image The image to free.
+ */
+void tmxImageUserFree(TMXimage *image);
 
 #endif /* TMX_UTILS_H */
