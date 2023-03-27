@@ -4,18 +4,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef TMX_PACKED_COLOR
-#define TMX_COLOR_T TMXcolor
-#else
+#ifdef TMX_VECTOR_COLOR
 #define TMX_COLOR_T TMXcolorf
+#else
+#define TMX_COLOR_T TMXcolor
 #endif
 
 #ifndef TMX_BOOL_T
-#define TMX_BOOL_T                                                                                                                         \
-    int /** The integral types used for booleans. Define prior to including this header to change. (e.g. `#define TMX_BOOL_T char`) */
+#define TMX_BOOL_T int /** The type used for booleans. Define prior to including this header to change. (e.g. `#define TMX_BOOL_T char`) */
 #endif
 
-// TODO
+/**
+ * @brief Swaps the endianness of a 32-bit value.
+ * @param[in] x A 32-bit value to swap the endian of.
+ * @return The 32-bit value with the endian swapped.
+ */
+#define TMX_ENDIAN_SWAP(x) (((x) >> 24) | (((x) & 0x00FF0000U) >> 8) | (((x) & 0x0000FF00U) << 8) | ((x) << 24))
+
 #define TMX_INLINE __inline__
 
 #define TMX_MAX_PATH 260 /** The maximum length of a filesystem path. */
@@ -56,19 +61,40 @@
 #define TMX_GID_ROTATE_120      0x10000000U /** Bit-flag indicating a hexagonal GID is rotated 120 degrees. */
 #define TMX_GID_MASK            0x0FFFFFFFU /** Bit-mask to clear the flip/rotate bits from a GID. */
 
-#define TMX_FLAG_NONE     0x0000 /** No additional meta-data flags. */
-#define TMX_FLAG_EMBEDDED 0x0001 /** Indicates the current object's definition is embedded within another object. */
-#define TMX_FLAG_EXTERNAL 0x0002 /** Indicates the current object's definition resides in an external file. */
-#define TMX_FLAG_CACHED   0x0004 /** Indicates the item is stored within a cache object that manages it memory. */
-#define TMX_FLAG_COLOR    0x0008 /** Context varies, but indicates that a color field is explicitly defined. (i.e. color, tint_color, etc) */
-#define TMX_FLAG_NAME     0x0010 /** For map objects, indicates that the `name` field has been explicitly defined. */
-#define TMX_FLAG_POSITION 0x0020 /** For map objects, indicates that the `position` field has been explicitly defined. */
-#define TMX_FLAG_SIZE     0x0040 /** For map objects, indicates that the `size` field has been explicitly defined. */
-#define TMX_FLAG_ROTATION 0x0080 /** For map objects, indicates that the `rotation` field has been explicitly defined. */
-#define TMX_FLAG_GID      0x0100 /** For map objects, indicates that the `gid` field has been explicitly defined. */
-#define TMX_FLAG_VISIBLE  0x0200 /** For map objects, indicates that the `visible` field has been explicitly defined. */
-#define TMX_FLAG_POINTS   0x0400 /** For map objects, indicates that the `points` field has been explicitly defined. */
-#define TMX_FLAG_TEXT     0x0800 /** For map objects, indicates that the `text` field has been explicitly defined. */
+#define TMX_FLAG_NONE           0x00000000U /** No additional meta-data flags. */
+#define TMX_FLAG_EMBEDDED       0x00000001U /** Indicates the current object's definition is embedded within another object. */
+#define TMX_FLAG_EXTERNAL       0x00000002U /** Indicates the current object's definition resides in an external file. */
+#define TMX_FLAG_CACHED         0x00000004U /** Indicates the item is stored within a cache object that manages it memory. */
+#define TMX_FLAG_COLOR          0x00000008U /** Context varies, but indicates that a color field is explicitly defined. */
+#define TMX_FLAG_PROPERTIES     0x00000010U /** For map text object, indicates the `` field has been explicitly defined. */
+#define TMX_FLAG_NAME           0x00000020U /** For map objects, indicates that the `name` field has been explicitly defined. */
+#define TMX_FLAG_POSITION       0x00000040U /** For map objects, indicates that the `position` field has been explicitly defined. */
+#define TMX_FLAG_X              0x00000080U /** For map objects, indicates the position has been explicitly defined for the x-axis. */
+#define TMX_FLAG_Y              0x00000100U /** For map objects, indicates the position has been explicitly defined for the y-axis. */
+#define TMX_FLAG_SIZE           0x00000200U /** For map objects, indicates that the `size` field has been explicitly defined. */
+#define TMX_FLAG_WIDTH          0x00000400U /** For map objects. indicates the size has been explicitly defined for the x-axis. */
+#define TMX_FLAG_HEIGHT         0x00000800U /** For map objects. indicates the size has been explicitly defined for the y-axis. */
+#define TMX_FLAG_ROTATION       0x00001000U /** For map objects, indicates that the `rotation` field has been explicitly defined. */
+#define TMX_FLAG_GID            0x00002000U /** For map objects, indicates that the `gid` field has been explicitly defined. */
+#define TMX_FLAG_VISIBLE        0x00004000U /** For map objects, indicates that the `visible` field has been explicitly defined. */
+#define TMX_FLAG_POINTS         0x00008000U /** For map objects, indicates that the `points` field has been explicitly defined. */
+#define TMX_FLAG_CLASS          0x00010000U /** For map objects, indicates that the `class` field has been explicitly defined. */
+#define TMX_FLAG_TEXT           0x00020000U /** For map objects, indicates that the `text` field has been explicitly defined. */
+#define TMX_FLAG_USER1          0x00040000U /** Reserved. May be applied by user to set an arbitrary flag. */
+#define TMX_FLAG_USER2          0x00080000U /** Reserved. May be applied by user to set an arbitrary flag. */
+#define TMX_FLAG_ALIGN          0x00100000U /** Indicates that the `align` field has been explicitly modified. */
+#define TMX_FLAG_VALIGN         0x00200000U /** Indicates that a horizontal align flag has been explicitly defined. */
+#define TMX_FLAG_HALIGN         0x00400000U /** Indicates that a vertical align flag has been explicitly defined. */
+#define TMX_FLAG_FONT           0x00800000U /** Indicates that the `font` field has been explicitly defined. */
+#define TMX_FLAG_FONT_SIZE      0x01000000U /** Indicates that the `pixel_size` field has been explicitly defined. */
+#define TMX_FLAG_FONT_STYLE     0x02000000U /** Indicates that any `font_style` flag has been explicitly defined. */
+#define TMX_FLAG_FONT_BOLD      0x04000000U /** Indicates that the `bold` font style has been explicitly defined. */
+#define TMX_FLAG_FONT_ITALIC    0x08000000U /** Indicates that the `italic` font style has been explicitly defined. */
+#define TMX_FLAG_FONT_UNDERLINE 0x10000000U /** Indicates that the `underline` font style has been explicitly defined. */
+#define TMX_FLAG_FONT_STRIKEOUT 0x20000000U /** Indicates that the `strikeout` font style has been explicitly defined. */
+#define TMX_FLAG_FONT_KERNING   0x40000000U /** Indicates that the `kerning` field has been explicitly defined. */
+#define TMX_FLAG_WORD_WRAP      0x80000000U /** Indicates that the `word_wrap` field has been explicitly defined. */
+#define TMX_FONT_MASK           0xFFF00000U /** A mask that isolates the font-related bits. Can be used to quickly detect any font changes. */
 
 #define TMX_LAYER_TILE     1 /** A tile layer with tile data. */
 #define TMX_LAYER_CHUNK    2 /** A tile layer for an infinite map and chunked tile data. */
@@ -106,6 +132,19 @@
 #define TMX_FILL_MODE_STRETCH  0
 #define TMX_FILL_MODE_PRESERVE 1
 
+#define TMX_FORMAT_AUTO 0 /** Detect by file extension and/or text contents. */
+#define TMX_FORMAT_XML  1 /** Document is in XML format. */
+#define TMX_FORMAT_JSON 2 /** DOcument is in JSON format. */
+
+#define TMX_COMPRESSION_NONE 0 /** No compression. */
+#define TMX_COMPRESSION_GZIP 1 /** Gzip compression (i.e. DEFLATE) */
+#define TMX_COMPRESSION_ZLIB 2 /** Zlib compression (i.e. DEFLATE with additional header and checksum) */
+#define TMX_COMPRESSION_ZSTD 3 /** Zstandard compression. Optional compile-time algorithm created by Facebook. */
+
+#define TMX_ENCODING_NONE   0 /** No encoding. */
+#define TMX_ENCODING_CSV    1 /** A string containing comma-separated values. */
+#define TMX_ENCODING_BASE64 2 /** A Base64-encoded string. */
+
 /**
  * @brief An integral value that represents a boolean true/false.
  */
@@ -129,6 +168,7 @@ typedef uint32_t TMXtid;
 /**
  * @brief Describes a @b global tile ID, which may also be tainted with bits indicating flip/rotation.
  *
+ * @note This is simply an alias for a @ref TMXtid type to differentiate the semantics between local/global IDs in the API.
  * @sa @ref TMX_GID_CLEAN
  * @sa @ref TMX_GID_FLAGS
  */
@@ -182,8 +222,6 @@ typedef union TMXrect
 
 /**
  * @brief A color represented as ARGB in a packed integer value, with component values ranging from 0 to 255.
- *
- * @note Compile with @c TMX_PACKED_COLOR to have this be the default color structure used by the library.
  */
 typedef union TMXcolor
 {
@@ -200,8 +238,7 @@ typedef union TMXcolor
 /**
  * @brief A color represented as RGBA with normalized float component values ranging from 0.0 to 1.0.
  *
- * @note The is the default type used for colors by the library. Compile with the @c TMX_PACKED_COLOR flag
- * to have integral @ref TMXcolor be the default.
+ * @note Compile the library with the @c -DTMX_VECTOR_COLOR to make this the default structure used for all colors.
  */
 typedef struct TMXcolorf
 {
@@ -228,7 +265,7 @@ typedef union TMXuserptr
 typedef struct TMXcache TMXcache;
 
 /**
- * @brief Opaque type that stores property values in a dictionary-like structure.
+ * @brief Opaque type that stores property values in a hashed dictionary-like structure.
  */
 typedef struct TMXproperties TMXproperties;
 
@@ -251,6 +288,8 @@ typedef struct TMXproperty
     struct TMXproperty *next; /** Access the next property in a linked-list fashion. */
     TMXuserptr user;          /** User-defined value that can be attached to this object. Will never be modified by this library. */
 } TMXproperty;
+
+// TODO: Have next/previous with properties, as they are hash-like
 
 /**
  * @brief Describes an image that is used for a map, tileset, or object.
@@ -275,22 +314,6 @@ typedef struct TMXimage
  * @return A user-defined pointer containing pertinent image data that will be stored with the image object.
  */
 typedef TMXuserptr (*TMXimageloadfunc)(TMXimage *image, const char *basePath, TMXuserptr user);
-
-/**
- * @brief Prototype for a function that resolves a filesystem path that cannot be located.
- *
- * This library makes reasonable attempts by checking locally, and building absolute paths that respect the Tiled project structure, but
- * your project structure may deviate, in which case this callback can be used to provide the path.
- *
- * @param[in] path The relative path to locate.
- * @param[in] baseDir The base directory that @a path is expected to be relative to.
- * @param[in,out] buffer A buffer to write the resolved path to.
- * @param[in] bufferSize The maximum number of bytes that can be written to the @a buffer.
- * @param[in] user The user-pointer supplied when setting the callback.
- *
- * @return The number of bytes written to the @a buffer, or 0 when path could not be resolved.
- */
-typedef size_t (*TMXpathfunc)(const char *path, const char *baseDir, char *buffer, size_t bufferSize, TMXuserptr user);
 
 /**
  * @brief Prototype for callbacks to free user-loaded images.
@@ -348,10 +371,11 @@ typedef struct TMXobject
         struct TMXcoords poly; /** The points list. Applicable only when `type` is TMX_OBJECT_POLYGON or TMX_OBJECT_POLYLINE. */
         struct TMXtext *text;  /** The text object. Applicable only when `type` is TMX_OBJECT_TEXT. */
     };
-    struct TMXobject *next;    /** When object is a child of an object group, points to the next object in the linked-list. */
     TMXproperties *properties; /** Named property hash/dictionary containing arbitrary values. */
     TMXuserptr user;           /** User-defined value that can be attached to this object. Will never be modified by this library. */
 } TMXobject;
+
+// TODO: Remove next from object
 
 /**
  * @brief Describes a layer within a map.
@@ -373,11 +397,11 @@ typedef struct TMXlayer
     size_t count;           /** Indicates the number of items in the data array. Not applicable when type is TMX_LAYER_IMAGE. */
     union /** Union of values relevant only for a specific kind of layer. Use the `type` value to indicate which field is applicable. */
     {
-        TMXgid *tiles;          /** A contiguous array of global tile IDS. Applicable when the layer type is TMX_LAYER_TILE. */
-        TMXchunk *chunks;       /** A contiguous array of chunks. Applicable when the layer type is TMX_LAYER_CHUNK. */
-        TMXimage *image;        /** The layer image. Applicable when the layer type is TMX_LAYER_IMAGE. */
-        TMXobject *objects;     /** The layer's child objects. Applicable when the layer type is TMX_LAYER_OBJGROUP. */
-        struct TMXlayer *group; /** The head of the child layers linked-list. Applicable when the the layer type is TMX_LAYER_GROUP. */
+        TMXgid *tiles;           /** A contiguous array of global tile IDS. Applicable when the layer type is TMX_LAYER_TILE. */
+        TMXchunk *chunks;        /** A contiguous array of chunks. Applicable when the layer type is TMX_LAYER_CHUNK. */
+        TMXimage *image;         /** The layer image. Applicable when the layer type is TMX_LAYER_IMAGE. */
+        TMXobject **objects;     /** A contiguous array of child object pointers. Applicable when the layer type is TMX_LAYER_OBJGROUP. */
+        struct TMXlayer **group; /** A contiguous array of child layer pointers. Applicable when the the layer type is TMX_LAYER_GROUP. */
     } data;
     struct /** Indicates whether the image for this layer repeats. Applicable when the layer type is TMX_LAYER_IMAGE. */
     {
@@ -387,7 +411,6 @@ typedef struct TMXlayer
     TMXenum draw_order; /** Indicates the order in which objects should be drawn. Applicable when the layer type is TMX_LAYER_OBJGROUP. */
     TMXproperties *properties; /** Named property hash/dictionary containing arbitrary values. */
     TMXuserptr user;           /** User-defined value that can be attached to this object. Will never be modified by this library. */
-    struct TMXlayer *next;     /** The next layer defined in the map, or NULL if this is the topmost layer. */
 } TMXlayer;
 
 /**
@@ -422,9 +445,9 @@ typedef struct TMXanimation
  */
 typedef struct TMXtile
 {
-    TMXtid id;                 /** The local tile ID within its tileset. */
+    TMXtid id;                 /** The local ID of this tile within its parent tileset. */
     const char *class;         /** The class of the tile. Is inherited by tile objects. */
-    TMXrect rect;              /** The sub-rectangle representing this tile within the tileset. */
+    TMXrect rect;              /** The sub-rectangle representing this tile within the tileset, in pixel units. */
     TMXimage *image;           /** The image associated with this tile, or NULL. */
     TMXanimation animation;    /** A collection of animation frames. */
     TMXcollision collision;    /** A collection of shapes describing the tile collision(s). */
@@ -474,7 +497,6 @@ typedef struct TMXmaptileset
 {
     TMXgid first_gid;
     TMXtileset *tileset;
-    struct TMXmaptileset *next;
 } TMXmaptileset;
 
 typedef struct TMXmap
@@ -501,16 +523,32 @@ typedef struct TMXmap
     size_t tileset_count;         /** The number of tilesets used in this map. */
     TMXmaptileset *tilesets;      /** A linked-list containing the tilesets and their first global tile ID. */
     size_t layer_count;           /** The number of layers defined in the map. */
-    TMXlayer *layers;             /** The head of a linked-list of map layers. */
+    TMXlayer **layers;            /** A contiguous array of map layer pointers. */
     TMXuserptr user;              /** User-defined value that can be attached to this object. Will never be modified by this library. */
 } TMXmap;
 
 struct TMXtemplate
 {
-    TMXflag flags; /** Meta-data flags that can provide additional information about the template. */
-    TMXtileset *tileset;
-    TMXobject *object;
-    TMXuserptr user; /** User-defined value that can be attached to this object. Will never be modified by this library. */
+    TMXflag flags;       /** Meta-data flags that can provide additional information about the template. */
+    TMXgid first_gid;    /** When tileset is defined, indicates the first global tile ID of the tileset within the parent map, */
+    TMXtileset *tileset; /** When the object is a tile, points to the parent tileset. */
+    TMXobject *object;   /** The template object other objects inherit their values from. */
+    TMXuserptr user;     /** User-defined value that can be attached to this object. Will never be modified by this library. */
 };
+
+/**
+ * @brief Callback prototype for iterating a tile layer. The render order of the map is respected, and tiles
+ * are yielded in the order defined by the parent `draw_order` value of the map.
+ *
+ * @param[in] map The parent map.
+ * @param[in] layer The parent tile layer within the @a map.
+ * @param[in] tile The tile to be rendered, or can be @c NULL if specified to yield empty tiles.
+ * @param[in] x The location the tile should be rendered on the x-axis, in tile units.
+ * @param[in] y The location the tile should be rendered on the y-axis, in tile units.
+ * @param[in] flags Flip/rotate flags.
+ *
+ * @return @ref TMX_TRUE to continue iteration, otherwise @ref TMX_FALSE to stop.
+ */
+typedef TMXbool (*TMXforeachfunc)(const TMXmap *map, const TMXlayer *layer, const TMXtile *tile, int x, int y, TMXflag flags);
 
 #endif /* TMX_TYPES_H */

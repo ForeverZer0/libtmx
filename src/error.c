@@ -7,7 +7,7 @@ static TMXerrorfunc errorCallback;
 static TMXuserptr userPtrValue;
 
 void
-tmxSetErrorCallback(TMXerrorfunc callback, TMXuserptr user)
+tmxErrorCallback(TMXerrorfunc callback, TMXuserptr user)
 {
     errorCallback = callback;
     userPtrValue  = user;

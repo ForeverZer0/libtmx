@@ -4,22 +4,6 @@
 #include "types.h"
 
 /**
- * @brief Swaps the endianness of a 32-bit value.
- * @param[in] x A 32-bit value to swap the endian of.
- * @return The 32-bit value with the endian swapped.
- */
-#define TMX_ENDIAN_SWAP(x) (((x) >> 24) | (((x) &0x00FF0000U) >> 8) | (((x) &0x0000FF00U) << 8) | ((x) << 24))
-
-#define TMX_COMPRESSION_NONE 0 /** No compression. */
-#define TMX_COMPRESSION_GZIP 1 /** Gzip compression (i.e. DEFLATE) */
-#define TMX_COMPRESSION_ZLIB 2 /** Zlib compression (i.e. DEFLATE with additional header and checksum) */
-#define TMX_COMPRESSION_ZSTD 3 /** Zstandard compression. Optional compile-time algorithm created by Facebook. */
-
-#define TMX_ENCODING_NONE   0 /** No encoding. */
-#define TMX_ENCODING_CSV    1 /** A string containing comma-separated values. */
-#define TMX_ENCODING_BASE64 2 /** A Base64-encoded string. */
-
-/**
  * @brief Tests whether the specified @a input is a valid Base64 string.
  *
  * @param[in] input The string to test.
@@ -119,7 +103,7 @@ size_t tmxCsvDecode(const char *input, size_t inputSize, TMXgid *output, size_t 
  * @param[in,out] output A buffer allocated with sufficient size to receive the decompressed tile data.
  * @param[in] outputCount The maximum number of elements that can be written to the @a output array.
  * @param[in] compression A enumeration value indicating the type of compression used, if any.
- * 
+ *
  * @return The number of tile IDs written to the @a output buffer.
  */
 size_t tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMXenum compression);

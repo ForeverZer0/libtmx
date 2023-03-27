@@ -47,6 +47,29 @@ typedef void *(*TMXcallocfunc)(size_t elemCount, size_t elemSize, TMXuserptr use
 typedef void (*TMXfreefunc)(void *memory, TMXuserptr user);
 
 /**
+ * @brief Prototype for a function to load the contents from a path in a "virtual" filesystem.
+ * 
+ * @param[in] path The filesystem path that needs loaded.
+ * @param[in] basePath An optional base path that the @a path is relative to. May be @c NULL.
+ * @param[in] user The user-defined value assigned when the callback was set.
+ * 
+ * @return A null-terminated pointer to the contents of the file, or @c NULL if failed.
+ */
+typedef const char *(*TMXreadfunc)(const char *path, const char *basePath, TMXuserptr user);
+
+/**
+ * @brief Sets a callback that can be used to load a file from a "virtual" filesystem. 
+ * 
+ * @details This can be used to resolve paths that cannot be found, or read from documents embedded in
+ * your project that don't actually exist in the filesystem or otherwise not located as defined in the TMX.
+ * 
+ * @param[in] read A callback that will be invoked to read the contents of a file.
+ * @param[in] free The free function that will be called on the pointer when it is no longer needed, or @c NULL if it does not freed.
+ * @param[in] user A user-defined pointer that will be supplied with each call.
+ */
+void tmxFileReadCallback(TMXreadfunc read, TMXfreefunc free, TMXuserptr user);
+
+/**
  * @brief Structure containing function pointers for memory allocation and freeing.
  */
 typedef struct TMXallocator
@@ -57,6 +80,10 @@ typedef struct TMXallocator
     TMXfreefunc free;       /** The user-defined `free` function. */
 } TMXallocator;
 
+
+
+
+
 /**
  * @brief Assigns user-defined functions for allocating and freeing memory.
  *
@@ -65,7 +92,9 @@ typedef struct TMXallocator
  *
  * @return @ref TMX_TRUE on success, otherwise @ref TMX_FALSE.
  */
-TMXbool tmxSetAllocator(TMXallocator allocator, TMXuserptr user);
+TMXbool tmxMemoryAllocator(TMXallocator allocator, TMXuserptr user);
+
+#ifndef TMX_LOG_ALLOCATIONS
 
 /**
  * @brief Allocates the requested memory and returns a pointer to it.
@@ -104,13 +133,28 @@ void *tmxCalloc(size_t elemCount, size_t elemSize);
  */
 void tmxFree(void *memory);
 
+#else
+
+void *tmxMallocLogged(size_t size, const char *file, int line);
+void *tmxReallocLogged(void *previous, size_t size, const char *file, int line);
+void *tmxCallocLogged(size_t count, size_t size, const char *file, int line);
+void tmxFreeLogged(void *ptr, const char *file, int line);
+
+#define tmxMalloc(size) tmxMallocLogged((size), __FILE__, __LINE__)
+#define tmxCalloc(count, size) tmxCallocLogged((count), (size), __FILE__, __LINE__)
+#define tmxRealloc(previous, size) tmxReallocLogged((previous), (size), __FILE__, __LINE__)
+#define tmxFree(ptr) tmxFreeLogged((ptr), __FILE__, __LINE__)
+
+#endif
+
 void tmxFreeMap(TMXmap *map);
 void tmxFreeTileset(TMXtileset *tileset);
 void tmxFreeTemplate(TMXtemplate *template);
-void tmxFreeProperties(TMXproperties *properties);
-void tmxFreeObject(TMXobject *object);
-void tmxFreeLayer(TMXlayer *layer);
-void tmxFreeImage(TMXimage *image);
+
+
+
+
+
 
 
 #endif /* TMX_MEMORY_H */

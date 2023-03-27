@@ -2,6 +2,7 @@
 #include "internal.h"
 #include "tmx/error.h"
 #include "tmx/memory.h"
+#include <string.h>
 
 #define MINIZ_NO_MALLOC
 #define MINIZ_NO_STDIO
@@ -12,21 +13,8 @@
 #define MZ_FREE    tmxFree
 #define MZ_REALLOC tmxRealloc
 #include "miniz.h"
-#include <string.h>
 
-static TMX_INLINE TMXbool
-tmxIsBase64Char(char c)
-{
-    if (c >= '0' && c <= '9')
-        return TMX_TRUE;
-    if (c >= 'A' && c <= 'Z')
-        return TMX_TRUE;
-    if (c >= 'a' && c <= 'z')
-        return TMX_TRUE;
-    if (c == '+' || c == '/' || c == '=')
-        return TMX_TRUE;
-    return TMX_FALSE;
-}
+#define TMX_GZIP_HEADER_SIZE 10
 
 TMXbool
 tmxBase64IsValid(const char *input, size_t inputSize)
@@ -35,9 +23,16 @@ tmxBase64IsValid(const char *input, size_t inputSize)
     if (inputSize % 4 != 0)
         return TMX_FALSE;
 
-    for (i = 0; i < inputSize; i++)
+    char c = *input;
+    for (i = 0; i < inputSize; c = input[++i])
     {
-        if (tmxIsBase64Char(input[i]))
+        if (c >= '0' && c <= '9')
+            continue;
+        if (c >= 'A' && c <= 'Z')
+            continue;
+        if (c >= 'a' && c <= 'z')
+            continue;
+        if (c == '+' || c == '/' || c == '=')
             continue;
         return TMX_FALSE;
     }
@@ -75,9 +70,7 @@ tmxBase64Decode(const char *input, size_t inputSize, void *output, size_t output
                                         18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31,
                                         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51};
 
-    size_t b64Size;
-    size_t i;
-    size_t j;
+    size_t i, j, b64Size;
     int v;
     char *outp = output;
 
@@ -119,41 +112,74 @@ tmxBase64Decode(const char *input, size_t inputSize, void *output, size_t output
 size_t
 tmxInflateGzip(const void *input, size_t inputSize, void *output, size_t outputSize)
 {
-    static const int GZIP_HEADER_SIZE = 10;
-
-    if (inputSize <= GZIP_HEADER_SIZE)
+    if (inputSize <= TMX_GZIP_HEADER_SIZE)
     {
-        tmxErrorMessage(TMX_ERR_FORMAT, "Invalid length Gzip stream");
+        tmxError(TMX_ERR_FORMAT);
         return 0;
     }
-    size_t result = tinfl_decompress_mem_to_mem(output, outputSize, &input[GZIP_HEADER_SIZE], inputSize - GZIP_HEADER_SIZE, 0);
-    return result == TINFL_STATUS_FAILED ? 0 : result;
+    size_t result = tinfl_decompress_mem_to_mem(output, outputSize, &input[TMX_GZIP_HEADER_SIZE], inputSize - TMX_GZIP_HEADER_SIZE, 0);
+    if (result == TINFL_STATUS_FAILED)
+    {
+        tmxError(TMX_ERR_FORMAT);
+        return 0;
+    }
+    return result;
 }
 
 size_t
 tmxInflateZlib(const void *input, size_t inputSize, void *output, size_t outputSize)
 {
     size_t result = tinfl_decompress_mem_to_mem(output, outputSize, input, inputSize, TINFL_FLAG_PARSE_ZLIB_HEADER);
-    return result == TINFL_STATUS_FAILED ? 0 : result;
+    if (result == TINFL_STATUS_FAILED)
+    {
+        tmxError(TMX_ERR_FORMAT);
+        return 0;
+    }
+    return result;
 }
+
+#ifdef TMX_NO_ZSTD
 
 size_t
 tmxInflateZstd(const void *input, size_t inputSize, void *output, size_t outputSize)
 {
-    return 0; // TODO
+    TMX_UNUSED(input);
+    TMX_UNUSED(inputSize);
+    TMX_UNUSED(output);
+    TMX_UNUSED(outputSize);
+    tmxError(TMX_ERR_UNSUPPORTED);
+    return 0;
 }
+
+#else
+
+size_t ZSTD_decompress(void *dst, size_t dstCapacity, const void *src, size_t srcSize);
+unsigned int ZSTD_isError(size_t code);
+
+size_t
+tmxInflateZstd(const void *input, size_t inputSize, void *output, size_t outputSize)
+{
+    size_t result = ZSTD_decompress(output, outputSize, input, inputSize);
+    if (ZSTD_isError(result))
+    {
+        tmxError(TMX_ERR_FORMAT);
+        return 0;
+    }
+    return result;
+}
+
+#endif
 
 size_t
 tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMXenum compression)
 {
-    size_t result = 0;
-    size_t base64Size;
+    size_t outputSize, base64Size, result = 0;
     void *base64Data;
 
-    size_t outputSize = outputCount * sizeof(TMXgid);
-    base64Size        = tmxBase64DecodedSize(input, inputSize);
-    base64Data        = tmxMalloc(base64Size);
-    base64Size        = tmxBase64Decode(input, inputSize, base64Data, base64Size);
+    outputSize = outputCount * sizeof(TMXgid);
+    base64Size = tmxBase64DecodedSize(input, inputSize);
+    base64Data = tmxMalloc(base64Size);
+    base64Size = tmxBase64Decode(input, inputSize, base64Data, base64Size);
 
     switch (compression)
     {
@@ -172,7 +198,6 @@ tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCou
 
     tmxFree(base64Data);
     result /= sizeof(TMXgid);
-    
 
     // TMX spec is always little-endian, so swap if host architecture uses big-endianness.
 #ifdef TMX_BIG_ENDIAN
@@ -180,7 +205,7 @@ tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCou
     TMXgid gid;
     for (i = 0; i < result; i++)
     {
-        gid     = output[i];
+        gid       = output[i];
         output[i] = TMX_ENDIAN_SWAP32(gid);
     }
 #endif

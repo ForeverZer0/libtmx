@@ -7,28 +7,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-
-
 struct TMXxmlreader
 {
-    yxml_t scanner;
-    yxml_ret_t token;
-    char *ptr;
-    char *buffer;
-    char *memory;
-    const char *input;
-    const char *str;
+    yxml_t reader;    /** The XML parser state. */
+    yxml_ret_t token; /** The current token the parser is positioned at. */
+    char *ptr;        /** A pointer that can be moved within the buffer. */
+    char *buffer;     /** Scratch buffer for storing parsed values of the current entity. */
+    char *memory;     /** Internal buffer used by the XML parser. */
+    const char *str;  /** The input string that is being parsed. */
 };
 
-static inline TMXbool
+static TMX_INLINE TMXbool
 tmxXmlNextToken(TMXxmlreader *xml)
 {
     xml->str++;
-    xml->token = yxml_parse(&xml->scanner, *xml->str);
+    xml->token = yxml_parse(&xml->reader, *xml->str);
     return *xml->str;
 }
 
-static inline void
+static TMX_INLINE void
 tmxXmlResetBuffer(TMXxmlreader *xml)
 {
     xml->ptr  = xml->buffer;
@@ -38,7 +35,7 @@ tmxXmlResetBuffer(TMXxmlreader *xml)
 const char *
 tmxXmlElementName(const TMXxmlreader *xml)
 {
-    return xml->scanner.elem;
+    return xml->reader.elem;
 }
 
 TMXbool
@@ -60,9 +57,10 @@ tmxXmlMoveToContent(TMXxmlreader *xml)
     return TMX_FALSE;
 }
 
-TMXbool tmxXmlAssertElement(TMXxmlreader *xml, const char *name)
+TMXbool
+tmxXmlAssertElement(TMXxmlreader *xml, const char *name)
 {
-    if (strcmp(xml->scanner.elem, name) == 0)
+    if (strcmp(xml->reader.elem, name) == 0)
         return TMX_TRUE;
 
     tmxErrorFormat(TMX_ERR_PARSE, "Expected <%s> element.", name);
@@ -73,8 +71,6 @@ TMXbool
 tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
 {
 
-    // TODO: Check if already positioned at element start before reading a token?
-
     while (tmxXmlNextToken(xml))
     {
         if (xml->token == YXML_ELEMEND)
@@ -83,13 +79,11 @@ tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
         if (xml->token != YXML_ELEMSTART)
             continue;
 
-        *outName     = xml->scanner.elem;
-        *outNameSize = yxml_symlen(&xml->scanner, xml->scanner.elem);
+        *outName     = xml->reader.elem;
+        *outNameSize = yxml_symlen(&xml->reader, xml->reader.elem);
         return TMX_TRUE;
     }
     return TMX_FALSE;
-
-
 
     // do
     // {
@@ -99,8 +93,8 @@ tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
     //     if (xml->token != YXML_ELEMSTART)
     //         continue;
 
-    //     *outName = xml->scanner.elem;
-    //     *outNameSize = yxml_symlen(&xml->scanner, xml->scanner.elem);
+    //     *outName = xml->reader.elem;
+    //     *outNameSize = yxml_symlen(&xml->reader, xml->reader.elem);
     //     return TMX_TRUE;
     // } while (tmxXmlNextToken(xml));
     // return TMX_FALSE;
@@ -117,9 +111,9 @@ tmxXmlReadStringContents(TMXxmlreader *xml, const char **contents, size_t *conte
 
     while (xml->token == YXML_CONTENT)
     {
-        for (c = 0; c < sizeof(xml->scanner.data) && xml->scanner.data[c]; ++c)
+        for (c = 0; c < sizeof(xml->reader.data) && xml->reader.data[c]; ++c)
         {
-            *xml->ptr = xml->scanner.data[c];
+            *xml->ptr = xml->reader.data[c];
             xml->ptr++;
         }
         tmxXmlNextToken(xml);
@@ -183,14 +177,14 @@ tmxXmlReadAttr(TMXxmlreader *xml, const char **name, const char **value)
                 break;
             case YXML_ATTRSTART:
                 // The beginning of an attribute, assign the name.
-                *name = xml->scanner.attr;
+                *name = xml->reader.attr;
                 break;
             case YXML_ATTRVAL:
             {
                 // Copy the bytes to the buffer, advancing the write buffer as it writes.
-                for (c = 0; c < sizeof(xml->scanner.data) && xml->scanner.data[c]; ++c)
+                for (c = 0; c < sizeof(xml->reader.data) && xml->reader.data[c]; ++c)
                 {
-                    *xml->ptr = xml->scanner.data[c];
+                    *xml->ptr = xml->reader.data[c];
                     xml->ptr++;
                 }
                 break;
@@ -217,42 +211,55 @@ tmxXmlReaderFree(TMXxmlreader *reader)
 {
     if (!reader)
         return;
-    
+
     tmxFree(reader->buffer);
     tmxFree(reader->memory);
-    if (reader->input)
-        tmxFree((void *) reader->input);
-
     tmxFree(reader);
 }
 
 TMXxmlreader *
-tmxXmlReaderInit(const char *input, size_t bufferSize)
+tmxXmlReaderInit(const char *input)
 {
+    size_t bufferSize = strlen(input); // TODO
+
     TMXxmlreader *reader;
     reader         = tmxCalloc(1, sizeof(TMXxmlreader));
     reader->buffer = tmxMalloc(bufferSize);
     reader->memory = tmxMalloc(bufferSize);
     reader->str    = input;
 
-    yxml_init(&reader->scanner, reader->memory, bufferSize);
+    yxml_init(&reader->reader, reader->memory, bufferSize);
     return reader;
 }
 
-void tmxXmlSkipElement(TMXxmlreader *xml)
-{   
-    const char *dummy_name;
-    size_t dummy_size;
-
-    while (tmxXmlReadElement(xml, &dummy_name, &dummy_size))
+void
+tmxXmlSkipElement(TMXxmlreader *xml)
+{
+    int level = 0;
+    do
     {
-    }
+        if (xml->token == YXML_ELEMSTART)
+            level++; 
+        else if (xml->token == YXML_ELEMEND)
+        {
+            level--;
+            if (level <= 0)
+                break;
+        }   
 
-    if (tmxXmlMoveToContent(xml))
-        tmxXmlSkipElement(xml);
+    } while (tmxXmlNextToken(xml));
+    
+
+    // while (tmxXmlReadElement(xml, &dummy_name, &dummy_size))
+    // {
+    // }
+
+    // if (tmxXmlMoveToContent(xml))
+    //     tmxXmlSkipElement(xml);
 }
 
-void tmxXmlMoveToElement(TMXxmlreader *xml, const char *name)
+void
+tmxXmlMoveToElement(TMXxmlreader *xml, const char *name)
 {
     do
     {
@@ -261,18 +268,8 @@ void tmxXmlMoveToElement(TMXxmlreader *xml, const char *name)
             if (!name)
                 return;
 
-            if (strcmp(name, xml->scanner.elem) == 0)
+            if (strcmp(name, xml->reader.elem) == 0)
                 return;
         }
     } while (tmxXmlNextToken(xml));
-}
-
-TMXbool
-tmxXmlAssertEOF(TMXxmlreader *xml)
-{
-    if (yxml_eof(&xml->scanner) == YXML_OK)
-        return TMX_TRUE;
-
-    tmxErrorMessage(TMX_ERR_FORMAT, "Expected end of document.");
-    return TMX_FALSE;
 }

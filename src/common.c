@@ -1,6 +1,6 @@
-#include "cwalk.h"
 #include "internal.h"
 #include "tmx/cache.h"
+#include "tmx/properties.h"
 #include "tmx/compression.h"
 #include "tmx/error.h"
 #include "tmx/memory.h"
@@ -9,20 +9,14 @@
 #include <errno.h>
 #include <stdio.h>
 
-void tmxFreeTileset(TMXtileset *tileset); // TODO
-void tmxFreeTemplate(TMXtemplate *template);
-
 #pragma region Image
 
 static TMXimageloadfunc imageLoad;
 static TMXimagefreefunc imageFree;
 static TMXuserptr imageUserPtr;
 
-static TMXpathfunc pathResolve;
-static TMXuserptr pathUserPtr;
-
 void
-tmxSetImageCallbacks(TMXimageloadfunc loadFunc, TMXimagefreefunc freeFunc, TMXuserptr user)
+tmxImageCallback(TMXimageloadfunc loadFunc, TMXimagefreefunc freeFunc, TMXuserptr user)
 {
     imageLoad    = loadFunc;
     imageFree    = freeFunc;
@@ -35,7 +29,6 @@ tmxSetImageCallbacks(TMXimageloadfunc loadFunc, TMXimagefreefunc freeFunc, TMXus
 
 struct TMXentry
 {
-    const char *key;
     void *value;
     UT_hash_handle hh;
 };
@@ -45,7 +38,6 @@ struct TMXcache
     TMXflag flags;
     struct TMXentry *tilesets;
     struct TMXentry *templates;
-    struct TMXentry *images;
 };
 
 TMXbool
@@ -63,7 +55,6 @@ tmxCacheTryGet(TMXcache *cache, const char *key, void **result, TMXflag target)
     {
         case TMX_CACHE_TILESET: head = &cache->tilesets; break;
         case TMX_CACHE_TEMPLATE: head = &cache->templates; break;
-        case TMX_CACHE_IMAGE: head = &cache->images; break;
         default:
         {
             tmxError(TMX_ERR_PARAM);
@@ -80,76 +71,36 @@ tmxCacheTryGet(TMXcache *cache, const char *key, void **result, TMXflag target)
     return TMX_FALSE;
 }
 
-// static struct TMXentry *tmxCacheAddImpl(struct TMXentry *headTEMP, const char *key, size_t keyLen, void *value)
-// {
-//     if (!head)
-//         head = NULL;
-
-//     struct TMXentry *head = head ? headTEMP : NULL;
-
-//     struct TMXentry *entry;
-//     entry        = tmxCalloc(1, sizeof(struct TMXentry));
-//     entry->key   = tmxStringCopy(key, keyLen);
-//     entry->value = value;
-//     HASH_ADD_KEYPTR(hh, head, entry->key, keyLen, entry);
-
-//     return head;
-// }
-
 TMXbool
 tmxCacheAdd(TMXcache *cache, const char *key, void *value, TMXflag target)
 {
-    if (!cache || !key || !value || target == TMX_CACHE_NONE)
+    if (!cache || !key || !value || target == TMX_CACHE_NONE || !TMX_FLAG(cache->flags, target))
         return TMX_FALSE;
 
     size_t len = strlen(key);
-    if (!len || !TMX_FLAG(cache->flags, target))
+    if (!len)
         return TMX_FALSE;
 
-    struct TMXentry **head, *entry;
+    struct TMXentry *entry = TMX_ALLOC(struct TMXentry);
+    entry->value           = value;
+
     switch (target)
     {
         case TMX_CACHE_TILESET:
-            head = &cache->tilesets;
+            HASH_ADD_KEYPTR(hh, cache->tilesets, key, len, entry);
             ((TMXtileset *) value)->flags |= TMX_FLAG_CACHED;
             break;
         case TMX_CACHE_TEMPLATE:
-            head = &cache->templates;
+            HASH_ADD_KEYPTR(hh, cache->templates, key, len, entry);
             ((TMXtemplate *) value)->flags |= TMX_FLAG_CACHED;
-            break;
-        case TMX_CACHE_IMAGE:
-            head = &cache->images;
-            ((TMXimage *) value)->flags |= TMX_FLAG_CACHED;
             break;
         default:
         {
+            tmxFree(entry);
             tmxError(TMX_ERR_PARAM);
             return TMX_FALSE;
         }
     }
-
-    entry        = tmxCalloc(1, sizeof(struct TMXentry));
-    entry->key   = tmxStringCopy(key, len);
-    entry->value = value;
-    HASH_ADD_KEYPTR(hh, *head, entry->key, len, entry);
-    return TMX_TRUE;
-
-
-    // switch (target)
-    // {
-    //     case TMX_CACHE_TILESET:
-    //         cache->tilesets = tmxCacheAddImpl(cache->tilesets, key, len, value);
-    //         break;
-    //     case TMX_CACHE_TEMPLATE:
-    //         cache->templates = tmxCacheAddImpl(cache->templates, key, len, value);
-    //         break;
-    //     case TMX_CACHE_IMAGE:
-    //         cache->images = tmxCacheAddImpl(cache->images, key, len, value);
-    //         break;
-    //     default:
-    //         tmxError(TMX_ERR_PARAM);
-    //         return TMX_FALSE;
-    // }
 
     return TMX_TRUE;
 }
@@ -169,7 +120,6 @@ tmxCacheRemove(TMXcache *cache, const char *key, TMXflag target)
     {
         case TMX_CACHE_TILESET: head = &cache->tilesets; break;
         case TMX_CACHE_TEMPLATE: head = &cache->templates; break;
-        case TMX_CACHE_IMAGE: head = &cache->images; break;
         default:
         {
             tmxError(TMX_ERR_PARAM);
@@ -185,7 +135,6 @@ tmxCacheRemove(TMXcache *cache, const char *key, TMXflag target)
         {
             case TMX_CACHE_TILESET: ((TMXtileset *) entry->value)->flags &= ~(TMX_FLAG_CACHED); break;
             case TMX_CACHE_TEMPLATE: ((TMXtemplate *) entry->value)->flags &= ~(TMX_FLAG_CACHED); break;
-            case TMX_CACHE_IMAGE: ((TMXimage *) entry->value)->flags &= ~(TMX_FLAG_CACHED); break;
         }
         return TMX_TRUE;
     }
@@ -210,7 +159,6 @@ tmxCacheClear(TMXcache *cache, TMXflag targets)
             tileset = (TMXtileset *) entry->value;
             tileset->flags &= ~TMX_FLAG_CACHED;
             tmxFreeTileset(tileset);
-            tmxFree((void *) entry->key);
             tmxFree(entry);
             count++;
         }
@@ -225,22 +173,6 @@ tmxCacheClear(TMXcache *cache, TMXflag targets)
             template = (TMXtemplate *) entry->value;
             template->flags &= ~TMX_FLAG_CACHED;
             tmxFreeTemplate(template);
-            tmxFree((void *) entry->key);
-            tmxFree(entry);
-            count++;
-        }
-    }
-
-    if (cache->images && TMX_FLAG(targets, TMX_CACHE_IMAGE))
-    {
-        TMXimage *image;
-        HASH_ITER(hh, cache->images, entry, temp)
-        {
-            HASH_DEL(cache->images, entry);
-            image = (TMXimage *) entry->value;
-            image->flags &= ~TMX_FLAG_CACHED;
-            tmxFreeImage(image);
-            tmxFree((void *) entry->key);
             tmxFree(entry);
             count++;
         }
@@ -262,9 +194,6 @@ tmxCacheCount(TMXcache *cache, TMXflag targets)
 
     if (cache->templates && TMX_FLAG(targets, TMX_CACHE_TEMPLATE))
         count += HASH_COUNT(cache->templates);
-
-    if (cache->images && TMX_FLAG(targets, TMX_CACHE_IMAGE))
-        count += HASH_COUNT(cache->images);
 
     return count;
 }
@@ -313,13 +242,13 @@ tmxParseColor(const char *str)
         u32 |= 0xFF000000u;
 
     // If using packed colors, just assign the value, else normalize it.
-    #ifdef TMX_PACKED_COLOR
-    a.value = u32;
-    #else
+    #ifdef TMX_VECTOR_COLOR
     color.a = (unsigned char) ((u32 >> 24) & 0xFF);
     color.r = (unsigned char) ((u32 >> 16) & 0xFF);
     color.g = (unsigned char) ((u32 >>  8) & 0xFF);
     color.b = (unsigned char) ((u32 >>  0) & 0xFF);
+    #else
+    color.value = u32;
     #endif
 
     // clang-format on
@@ -340,7 +269,7 @@ tmxStringCopy(const char *input, size_t inputSize)
     return result;
 }
 
-inline TMXbool
+TMX_INLINE TMXbool
 tmxStringBool(const char *str)
 {
     if (str[0] == '0')
@@ -355,119 +284,12 @@ tmxStringBool(const char *str)
     return TMX_FALSE;
 }
 
-char *
-tmxFileReadAll(const char *filename, size_t *size)
-{
-    FILE *fp     = NULL;
-    char *buffer = NULL;
-    size_t len;
-
-    if (!filename)
-    {
-        tmxError(TMX_ERR_VALUE);
-        goto FAIL;
-    }
-
-    fp = fopen(filename, "r");
-    if (!fp)
-    {
-        tmxErrorFormat(TMX_ERR_IO, "Could not open file \"%s\".", filename);
-        goto FAIL;
-    }
-
-    fseek(fp, 0, SEEK_END);
-    len = (size_t) ftell(fp);
-    if (!len)
-        goto FAIL;
-    fseek(fp, 0, SEEK_SET);
-
-    buffer = tmxMalloc(len + 1);
-    if (!buffer)
-        goto FAIL;
-
-    if (fread(buffer, 1, len, fp) != len)
-    {
-        tmxErrorFormat(TMX_ERR_IO, "Failed to read from \"%s\".", filename);
-        goto FAIL;
-    }
-
-    buffer[len] = '\0';
-    if (size)
-        *size = len;
-    return buffer;
-
-FAIL:
-    if (size)
-        *size = 0;
-    if (buffer)
-        tmxFree(buffer);
-    if (fp)
-        fclose(fp);
-    return NULL;
-}
-
-static inline TMXbool
-tmxFileTest(const char *path)
-{
-    FILE *fp = NULL;
-    fp       = fopen(path, "r");
-    if (fp)
-    {
-        fclose(fp);
-        return TMX_TRUE;
-    }
-    return TMX_FALSE;
-}
-
-size_t
-tmxPathResolve(const char *path, const char *baseDir, char *buffer, size_t bufferSize)
-{
-    size_t len;
-
-    // Use built-in method to find path if base-directory was supplied.
-    if (baseDir)
-    {
-        len                              = cwk_path_get_absolute(baseDir, path, buffer, bufferSize);
-        buffer[TMX_MIN(len, bufferSize)] = '\0';
-        if (len && tmxFileTest(buffer))
-            return len;
-        len = 0;
-    }
-
-    // Test relative path and return if found.
-    if (tmxFileTest(path))
-    {
-        len = strlen(path);
-        len = TMX_MIN(len, bufferSize - 1);
-        memcpy(buffer, path, len);
-        buffer[len] = '\0';
-        return len;
-    }
-
-    // Couldn't find it, so invoke the user-callback to resolve it.
-    if (pathResolve)
-        len = pathResolve(path, baseDir, buffer, bufferSize, pathUserPtr);
-
-    // If still not found, emit an error.
-    if (!len)
-    {
-        if (errno == ENOENT)
-            tmxErrorFormat(TMX_ERR_IO, "No such file or directory: \"%s\".", path);
-        else if (errno == EACCES)
-            tmxErrorFormat(TMX_ERR_IO, "Permission denied accessing \"%s\".", path);
-    }
-
-    return len;
-}
-
 void
-tmxImageUserLoad(TMXimage *image, const char *baseDir, TMXcache *cache)
+tmxImageUserLoad(TMXimage *image, const char *basePath)
 {
     if (!imageLoad)
         return;
-
-    imageLoad(image, baseDir, imageUserPtr);
-    tmxCacheAddImage(cache, image->source, image);
+    imageLoad(image, basePath, imageUserPtr);
 }
 
 void
@@ -477,9 +299,151 @@ tmxImageUserFree(TMXimage *image)
         imageFree(image->user_data, imageUserPtr);
 }
 
-void
-tmxSetPathResolveCallback(TMXpathfunc callback, TMXuserptr user)
+
+
+static TMX_INLINE TMXtile *tmxGetTile(TMXmap *map, TMXgid gid)
 {
-    pathResolve = callback;
-    pathUserPtr = user;
+    TMXgid clean = gid & TMX_GID_MASK;
+    for (size_t i = 0; i < map->tileset_count; i++)
+    {
+        if (clean >= map->tilesets[i].first_gid);
+            return &map->tilesets[i].tileset->tiles[clean - map->tilesets[i].first_gid];
+    }
+    return NULL;
+}
+
+void
+tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfunc foreachFunc)
+{
+    if (!map || !layer || !foreachFunc || layer->type != TMX_LAYER_TILE)
+    {
+        tmxError(TMX_ERR_VALUE);
+        return;
+    }
+
+    int i, count = (int) layer->count;
+    int width = (int) layer->size.w;
+    int height = (int) layer->size.h;
+    TMXtile *tile = NULL;
+    TMXgid gid = 0;
+ 
+    switch (map->render_order)
+    {
+        case TMX_RENDER_RIGHT_DOWN: 
+            for (i = 0; i < count; i++)
+            {
+                gid = layer->data.tiles[i];
+                tile = tmxGetTile(map, gid);
+                if (tile || includeEmpty)
+                    foreachFunc(map, layer, tile, i % width, i / width, gid & ~TMX_GID_MASK);
+            }
+            break;
+        case TMX_RENDER_RIGHT_UP: 
+            for (i = 0; i < count; i++)
+            {
+                gid = layer->data.tiles[i];
+                tile = tmxGetTile(map, gid);
+                if (tile || includeEmpty)
+                    foreachFunc(map, layer, tile, i % width, height - (i / width), gid & ~TMX_GID_MASK);
+            }
+            break;
+        case TMX_RENDER_LEFT_DOWN:
+            for (i = 0; i < count; i++)
+            {
+                gid = layer->data.tiles[i];
+                tile = tmxGetTile(map, gid);
+                if (tile || includeEmpty)
+                    foreachFunc(map, layer, tile, width - (i % width), i / width, gid & ~TMX_GID_MASK);
+            }
+            break;
+        case TMX_RENDER_LEFT_UP: 
+            for (i = 0; i < count; i++)
+            {
+                gid = layer->data.tiles[i];
+                tile = tmxGetTile(map, gid);
+                if (tile || includeEmpty)
+                    foreachFunc(map, layer, tile, width - (i % width), height - (i / width), gid & ~TMX_GID_MASK);
+            }
+            break;
+        default: tmxError(TMX_ERR_PARAM); break;
+    }
+}
+
+void
+tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
+{
+    // Because the XML parser is forward-only reading, we can't first check for a template, copy it, and then only
+    // modify the duplicated object according to what it overrides. Instead, the object is defined normally
+    // and then each field checked. If the field was not explicitly defined in the object, it is assigned the
+    // value from its template. This is not ideal.
+
+    dst->type = src->type;
+
+    if (dst->type == TMX_OBJECT_TEXT && !dst->text)
+        dst->text = TMX_ALLOC(struct TMXtext);
+
+    if (!TMX_FLAG(dst->flags, TMX_FLAG_NAME) && src->name)
+        dst->name = tmxStringDup(src->name);
+    if (!TMX_FLAG(dst->flags, TMX_FLAG_CLASS) && src->class)
+        dst->class = tmxStringDup(src->class);
+    if (!TMX_FLAG(dst->flags, TMX_FLAG_GID))
+        dst->gid = src->gid;
+    if (!TMX_FLAG(dst->flags, TMX_FLAG_POSITION))
+        dst->position = src->position;
+    if (!TMX_FLAG(dst->flags, TMX_FLAG_SIZE))
+        dst->size = src->size;
+    if (!TMX_FLAG(dst->flags, TMX_FLAG_ROTATION))
+        dst->rotation = src->rotation;
+    if (!TMX_FLAG(dst->flags, TMX_FLAG_VISIBLE))
+        dst->visible = src->visible;
+
+    // Text-specific fields
+    if (dst->type == TMX_OBJECT_TEXT)
+    {
+        if (!dst->text->string && !TMX_FLAG(dst->flags, TMX_FLAG_TEXT) && src->text->string)
+            dst->text->string = tmxStringDup(src->text->string);
+        if (!dst->text->font && !TMX_FLAG(dst->flags, TMX_FLAG_FONT) && src->text->font)
+            dst->text->font = tmxStringDup(src->text->font);
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_BOLD) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_BOLD))
+            dst->text->style |= TMX_FONT_STYLE_BOLD;
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_ITALIC) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_ITALIC))
+            dst->text->style |= TMX_FONT_STYLE_ITALIC;
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_UNDERLINE) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_UNDERLINE))
+            dst->text->style |= TMX_FONT_STYLE_UNDERLINE;
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_STRIKEOUT) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_STRIKEOUT))
+            dst->text->style |= TMX_FONT_STYLE_STRIKEOUT;
+
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_HALIGN))
+        {
+            if (TMX_FLAG(src->flags, TMX_FLAG_HALIGN))
+                dst->text->align |= (src->text->align & ~TMX_ALIGN_CENTER_V);
+            else
+                dst->text->align |= TMX_ALIGN_LEFT;
+        }
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_VALIGN))
+        {
+            if (TMX_FLAG(src->flags, TMX_FLAG_VALIGN))
+                dst->text->align |= (src->text->align & ~TMX_ALIGN_CENTER_H);
+            else
+                dst->text->align |= TMX_ALIGN_TOP;
+        }
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_SIZE))
+            dst->text->pixel_size = src->text->pixel_size;
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_KERNING))
+            dst->text->kerning = src->text->kerning;
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_WORD_WRAP))
+            dst->text->wrap = src->text->wrap;
+    }
+
+    // Polygon/polyline specific fields.
+    else if ((dst->type == TMX_OBJECT_POLYGON || dst->type == TMX_OBJECT_POLYLINE) && !dst->poly.points)
+    {
+        dst->poly.count  = src->poly.count;
+        size_t pntSize   = dst->poly.count * sizeof(TMXvec2);
+        dst->poly.points = tmxMalloc(pntSize);
+        memcpy(dst->poly.points, src->poly.points, pntSize);
+    }
+
+    // Finally, merge/copy properties
+    dst->properties = tmxPropertiesMerge(dst->properties, src->properties);
 }

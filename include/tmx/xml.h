@@ -17,11 +17,10 @@ typedef struct TMXxmlreader TMXxmlreader;
  * @brief Initializes a new parser from the XML specified @a text.
  *
  * @param[in] text The XML contents.
- * @param[in] bufferSize The size of the internal buffers used for storing temporary values, element names, etc.
  *
  * @return The initialized parser state.
  */
-TMXxmlreader *tmxXmlReaderInit(const char *text, size_t bufferSize);
+TMXxmlreader *tmxXmlReaderInit(const char *text);
 
 /**
  * @brief Frees the parser.
@@ -90,12 +89,6 @@ TMXbool tmxXmlMoveToContent(TMXxmlreader *xml);
 */
 const char *tmxXmlElementName(const TMXxmlreader *xml);
 
-/**
- * @brief Tests whether the expected end of the document is indeed the end of the document.
- * @param[in] xml The parser state to query.
- * @return @ref TMX_TRUE if scanning results are as expected, otherwise @ref TMX_FALSE.
-*/
-TMXbool tmxXmlAssertEOF(TMXxmlreader *xml);
 
 /**
  * @brief Skips the current element and all of its children.

@@ -1,13 +1,16 @@
-
+#include "cwalk.h"
 #include "tmx/memory.h"
-#include "tmx/error.h"
 #include "internal.h"
+#include "tmx/error.h"
+#include <ctype.h>
 #include <stdlib.h>
 
 #ifdef TMX_DEBUG
 static size_t allocationCount;
 static size_t deallocationCount;
 #endif
+
+#pragma region Default Allocators
 
 static void *
 tmxMallocImpl(size_t size, TMXuserptr user)
@@ -37,8 +40,12 @@ tmxFreeImpl(void *memory, TMXuserptr user)
     free(memory);
 }
 
+#pragma endregion /* Default Allocators */
+
 static TMXallocator memoryPool = {tmxMallocImpl, tmxReallocImpl, tmxCallocImpl, tmxFreeImpl};
 static TMXuserptr userPtrValue;
+
+#ifndef TMX_LOG_ALLOCATIONS
 
 TMX_INLINE void *
 tmxMalloc(size_t size)
@@ -65,7 +72,7 @@ tmxRealloc(void *previous, size_t newSize)
 #endif
 
     void *ptr = memoryPool.realloc(previous, newSize, userPtrValue);
-    if (!ptr)
+    if (!ptr && newSize)
         tmxError(TMX_ERR_MEMORY);
     return ptr;
 }
@@ -73,6 +80,9 @@ tmxRealloc(void *previous, size_t newSize)
 TMX_INLINE void *
 tmxCalloc(size_t elemCount, size_t elemSize)
 {
+    if (!elemCount || !elemSize)
+        return NULL;
+
 #ifdef TMX_DEBUG
     allocationCount++;
 #endif
@@ -85,118 +95,66 @@ tmxCalloc(size_t elemCount, size_t elemSize)
 TMX_INLINE void
 tmxFree(void *memory)
 {
+    if (!memory)
+        return;
 #ifdef TMX_DEBUG
-    if (memory)
-        deallocationCount++;
+    deallocationCount++;
 #endif
     memoryPool.free(memory, userPtrValue);
 }
 
-void tmxFreeMap(TMXmap *map)
+#else
+
+#include <stdio.h>
+
+void *
+tmxMallocLogged(size_t size, const char *file, int line)
 {
-    if (!map)
-        return;
-
-    TMXlayer *layer, *tempLayer;
-    TMXmaptileset *tileset, *tempTileset;
-
-    tmxFree((void*)map->version);
-    tmxFree((void*)map->tiled_version);
-    tmxFree((void*)map->class);
-    tmxFreeProperties(map->properties);
-
-    layer = map->layers;
-    while (layer)
-    {
-        tempLayer = layer->next;
-        tmxFreeLayer(layer);
-        layer = tempLayer;
-    }
-
-    tileset = map->tilesets;
-    while (tileset)
-    {
-        tempTileset = tileset->next;
-        if (!TMX_FLAG(tileset->tileset->flags, TMX_FLAG_CACHED))
-        {
-            tmxFreeTileset(tileset->tileset);
-            tmxFree(tileset);
-        }
-        tileset = tempTileset;
-    }
-
-    tmxFree(map);
+    if (!size)
+        return NULL;
+    void *mem = malloc(size);
+    printf("ALLOCATE: %p - %s - %d\n", mem, file, line);
+    return mem;
 }
 
-void tmxFreeTileset(TMXtileset *tileset)
-{   
-    if (!tileset)
-        return;
+void *
+tmxReallocLogged(void *previous, size_t size, const char *file, int line)
+{
+    const char *word = NULL;
+    if (previous == NULL)
+        word = "ALLOCATE";
+    else if (size == 0)
+        word = "DEALLOCATE";
 
-    if (TMX_FLAG(tileset->flags, TMX_FLAG_CACHED))
-    {
-        tmxErrorMessage(TMX_ERR_INVALID_OPERATION, "Cannot free cached tileset.");
-        return;
-    }
+    void *mem = realloc(previous, size);
 
-    if (tileset->version)
-        tmxFree((void*) tileset->version);
-    if (tileset->tiled_version)
-        tmxFree((void*)tileset->tiled_version);
-    if (tileset->name)
-        tmxFree((void*) tileset->name);
-    if (tileset->class)
-        tmxFree((void*) tileset->class);
-    if (tileset->image)
-        tmxFreeImage(tileset->image);
-    if (tileset->properties)
-        tmxFreeProperties(tileset->properties);
-    
-    size_t i, j;
-    TMXtile tile;
+    if (word)
+        printf("%s: %p - %s - %d", word, mem, file, line);
 
-    if (tileset->tiles)
-    {
-        for (i = 0; i < tileset->tile_count; i++)
-        {
-            tile = tileset->tiles[i];
-            if (tile.class)
-                tmxFree((void*) tile.class);
-            if (tile.image)
-                tmxFreeImage(tile.image);
-            if (tile.animation.frames)
-                tmxFree(tile.animation.frames);
-            if (tile.properties)
-                tmxFreeProperties(tile.properties);
-            if (tile.collision.objects)
-            {
-                for (j = 0; j < tile.collision.count; j++)
-                    tmxFreeObject(tile.collision.objects[j]);
-                tmxFree(tile.collision.objects);
-            }
-        }
-        tmxFree(tileset->tiles);
-    }
-
-    tmxFree(tileset);
+    return mem;
 }
 
-void tmxFreeTemplate(TMXtemplate *template)
+void *
+tmxCallocLogged(size_t count, size_t size, const char *file, int line)
 {
-    if (TMX_FLAG(template->flags, TMX_FLAG_CACHED))
-    {
-        tmxErrorMessage(TMX_ERR_INVALID_OPERATION, "Cannot free cached template.");
-        return;
-    }
-
-    if (template->tileset && !TMX_FLAG(template->tileset->flags, TMX_FLAG_CACHED))
-        tmxFreeTileset(template->tileset);
-
-    tmxFreeObject(template->object);
-    tmxFree(template);
+    void *mem = calloc(count, size);
+    printf("ALLOCATE: %p - %s - %d\n", mem, file, line);
+    return mem;
 }
 
 void
+tmxFreeLogged(void *ptr, const char *file, int line)
+{
+    if (!ptr)
+        return;
+
+    printf("DEALLOCATE: %p - %s - %d\n", ptr, file, line);
+    free(ptr);
+}
+
+#endif
+
+static void
 tmxFreeProperties(TMXproperties *properties)
 {
     if (!properties)
@@ -220,14 +178,59 @@ tmxFreeProperties(TMXproperties *properties)
     }
 }
 
-void tmxFreeLayer(TMXlayer *layer)
+static void
+tmxFreeImage(TMXimage *image)
+{
+    if (!image)
+        return;
+
+    tmxImageUserFree(image);
+    tmxFree((void *) image->source);
+    tmxFree((void *) image->format);
+    tmxFree(image->data);
+    tmxFree(image);
+}
+
+static void
+tmxFreeObject(TMXobject *object)
+{
+    if (!object)
+        return;
+
+    tmxFree((void *) object->name);
+    tmxFree((void *) object->class);
+    tmxFreeProperties(object->properties);
+
+    if (object->template && !TMX_FLAG(object->template->flags, TMX_FLAG_CACHED))
+        tmxFreeTemplate(object->template);
+
+    switch (object->type)
+    {
+        case TMX_OBJECT_POLYGON:
+        case TMX_OBJECT_POLYLINE: tmxFree(object->poly.points); break;
+        case TMX_OBJECT_TEXT:
+            if (object->text)
+            {
+                tmxFree((void *) object->text->font);
+                tmxFree((void *) object->text->string);
+                tmxFree(object->text);
+            }
+            break;
+        default: break;
+    }
+
+    tmxFree(object);
+}
+
+static void
+tmxFreeLayer(TMXlayer *layer)
 {
     if (!layer)
         return;
 
     size_t i;
-    tmxFree((void*)layer->name);
-    tmxFree((void*)layer->class);
+    tmxFree((void *) layer->name);
+    tmxFree((void *) layer->class);
     tmxFreeProperties(layer->properties);
     switch (layer->type)
     {
@@ -250,24 +253,16 @@ void tmxFreeLayer(TMXlayer *layer)
         }
         case TMX_LAYER_OBJGROUP:
         {
-            TMXobject *temp, *obj = layer->data.objects;
-            while (obj)
-            {
-                temp = obj->next;
-                tmxFreeObject(obj);
-                obj = temp;
-            }
+            for (i = 0; i < layer->count; i++)
+                tmxFreeObject(layer->data.objects[i]);
+            tmxFree(layer->data.objects);
             break;
         }
         case TMX_LAYER_GROUP:
         {
-            TMXlayer *temp, *child = layer->data.group;
-            while (child)
-            {
-                temp = child->next;
-                tmxFreeLayer(child);
-                child = temp;
-            }
+            for (i = 0; i < layer->count; i++)
+                tmxFreeLayer(layer->data.group[i]);
+            tmxFree(layer->data.group);
             break;
         }
     }
@@ -275,51 +270,101 @@ void tmxFreeLayer(TMXlayer *layer)
     tmxFree(layer);
 }
 
-void tmxFreeObject(TMXobject *object)
+void
+tmxFreeMap(TMXmap *map)
 {
-    if (!object)
+    if (!map)
         return;
 
-    tmxFree((void*)object->name);
-    tmxFree((void*)object->class);
-    tmxFreeProperties(object->properties);
-    
-    if (object->template && !TMX_FLAG(object->template->flags, TMX_FLAG_CACHED))
-        tmxFreeTemplate(object->template);
+    tmxFree((void *) map->version);
+    tmxFree((void *) map->tiled_version);
+    tmxFree((void *) map->class);
+    tmxFreeProperties(map->properties);
 
-    switch (object->type)
+    size_t i;
+    for (i = 0; i < map->layer_count; i++)
+        tmxFreeLayer(map->layers[i]);
+
+    for (i = 0; i < map->tileset_count; i++)
     {
-        case TMX_OBJECT_POLYGON:
-        case TMX_OBJECT_POLYLINE:
-            tmxFree(object->poly.points);
-            break;
-        case TMX_OBJECT_TEXT:
-            tmxFree((void*) object->text->font);
-            tmxFree((void*) object->text->string);
-            tmxFree(object->text);
-            break;
-        default: break;
+        if (!map->tilesets[i].tileset || TMX_FLAG(map->tilesets[i].tileset->flags, TMX_FLAG_CACHED))
+            continue;
+        tmxFreeTileset(map->tilesets[i].tileset);
     }
 
-    tmxFree(object);
+    tmxFree(map->layers);
+    tmxFree(map->tilesets);
+    tmxFree(map);
 }
 
-void tmxFreeImage(TMXimage *image)
+void
+tmxFreeTileset(TMXtileset *tileset)
 {
-    if (!image)
+    if (!tileset)
         return;
 
-    if (TMX_FLAG(image->flags, TMX_FLAG_CACHED))
+    if (TMX_FLAG(tileset->flags, TMX_FLAG_CACHED))
     {
-        tmxErrorMessage(TMX_ERR_INVALID_OPERATION, "Cannot free cached image.");
+        tmxErrorMessage(TMX_ERR_INVALID_OPERATION, "Cannot free cached tileset.");
         return;
     }
 
-    tmxImageUserFree(image);
-    tmxFree((void*)image->source);
-    tmxFree((void*)image->format);
-    tmxFree(image->data);
-    tmxFree(image);
+    if (tileset->version)
+        tmxFree((void *) tileset->version);
+    if (tileset->tiled_version)
+        tmxFree((void *) tileset->tiled_version);
+    if (tileset->name)
+        tmxFree((void *) tileset->name);
+    if (tileset->class)
+        tmxFree((void *) tileset->class);
+    if (tileset->image)
+        tmxFreeImage(tileset->image);
+    if (tileset->properties)
+        tmxFreeProperties(tileset->properties);
+
+    size_t i, j;
+    TMXtile tile;
+
+    if (tileset->tiles)
+    {
+        for (i = 0; i < tileset->tile_count; i++)
+        {
+            tile = tileset->tiles[i];
+            if (tile.class)
+                tmxFree((void *) tile.class);
+            if (tile.image)
+                tmxFreeImage(tile.image);
+            if (tile.animation.frames)
+                tmxFree(tile.animation.frames);
+            if (tile.properties)
+                tmxFreeProperties(tile.properties);
+            if (tile.collision.objects)
+            {
+                for (j = 0; j < tile.collision.count; j++)
+                    tmxFreeObject(tile.collision.objects[j]);
+                tmxFree(tile.collision.objects);
+            }
+        }
+        tmxFree(tileset->tiles);
+    }
+
+    tmxFree(tileset);
+}
+
+void
+tmxFreeTemplate(TMXtemplate *template)
+{
+    if (TMX_FLAG(template->flags, TMX_FLAG_CACHED))
+    {
+        tmxErrorMessage(TMX_ERR_INVALID_OPERATION, "Cannot free cached template.");
+        return;
+    }
+
+    if (template->tileset && !TMX_FLAG(template->tileset->flags, TMX_FLAG_CACHED))
+        tmxFreeTileset(template->tileset);
+
+    tmxFreeObject(template->object);
+    tmxFree(template);
 }
 
 #ifdef TMX_DEBUG
@@ -342,3 +387,103 @@ tmxMemoryLeakCheck(void)
     printf(YELLOW " -> " RESET "Result:          " BRIGHT "%s\n\n" RESET, allocationCount == deallocationCount ? GREEN "PASS" : RED "FAIL");
 }
 #endif
+
+
+static TMXreadfunc fileRead;
+static TMXfreefunc fileFree;
+static TMXuserptr fileUserPtr;
+
+size_t tmxFileAbsolutePath(const char *path, const char *basePath, char *buffer, size_t bufferSize)
+{   
+    size_t dirLen;;
+    cwk_path_get_dirname(basePath, &dirLen);
+
+    char dirBuffer[dirLen + 1];
+    memcpy(dirBuffer, basePath, dirLen);
+    dirBuffer[dirLen] = '\0';
+
+    return cwk_path_get_absolute(dirBuffer, path, buffer, bufferSize);
+}
+
+
+size_t tmxFileDirectory(const char *path)
+{
+    const char *fs = strrchr(path, '/');
+    const char *bs = strrchr(path, '\\');
+
+    const char *last = TMX_MAX(fs, bs);
+    if (!last)
+        return 0;
+
+    return (size_t)((last + 1) - path);
+}
+
+static char *tmxFileReadImpl(const char *path, const char *basePath)
+{
+    char *result = NULL;
+    size_t len;
+
+    FILE *fp = NULL;
+    fp = fopen(path, "r");
+
+    if (!fp && basePath)
+    {
+        char buffer[TMX_MAX_PATH];
+        len = tmxFileAbsolutePath(path, basePath, buffer, TMX_MAX_PATH);
+        if (!len)
+            return NULL;
+
+        fp = fopen(buffer, "r");
+    }
+
+    if (!fp)
+        return NULL;
+
+    fseek(fp, 0, SEEK_END);
+    len = (size_t) ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    if (len)
+    {
+        result = tmxMalloc(len + 1);
+        if (fread(result, 1, len, fp) != len)
+        {
+            tmxErrorFormat(TMX_ERR_IO, "Failed to read from \"%s\".", path);
+            tmxFree(result);
+            result = NULL;
+        }
+        else
+        {
+            result[len] = '\0';
+        }
+    }
+
+    fclose(fp);
+    return result;
+}
+
+char *tmxFileRead(const char *path, const char *basePath)
+{
+    if (!path)
+        return NULL;
+
+    if (fileRead)
+    {
+        char *result = NULL;
+        size_t len;
+
+        const char *userBuffer = fileRead(path, basePath, fileUserPtr);
+        if (userBuffer)
+        {
+            len = strlen(userBuffer);
+            result = tmxMalloc(len + 1);
+            memcpy(result, userBuffer, len);
+            result[len] = '\0';
+            if (fileFree)
+                fileFree((void*)userBuffer, fileUserPtr);
+            return result;
+        }
+    }
+
+    return tmxFileReadImpl(path, basePath);
+}

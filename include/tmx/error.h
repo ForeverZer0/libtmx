@@ -5,7 +5,8 @@
 #include <stdarg.h>
 
 /**
- * @brief Maximum length for error message strings, including the null-terminator.
+ * @brief Maximum length for error message strings, including the null-terminator. 
+ * Messages that exceed this hard-limit will be truncated.
  */
 #define TMX_MAX_ERR_MSG 256
 
@@ -69,9 +70,9 @@ TMXenum tmxGetError(void);
 /**
  * @brief Sets a callback function that will be invoked when errors are emitted by the library.
  *
- * @param callback The function to call when an error occurs.
+ * @param callback The function to invoke when an error occurs.
  * @param user A user-defined pointer that will be passed to the callback function.
  */
-void tmxSetErrorCallback(TMXerrorfunc callback, TMXuserptr user);
+void tmxErrorCallback(TMXerrorfunc callback, TMXuserptr user);
 
 #endif /* TMX_ERROR_H */

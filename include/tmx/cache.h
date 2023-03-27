@@ -21,7 +21,6 @@
 #define TMX_CACHE_NONE     0x00 /** None/invalid target. */
 #define TMX_CACHE_TEMPLATE 0x01 /** Object templates. */
 #define TMX_CACHE_TILESET  0x02 /** Tilesets used by tile layers and objects. */
-#define TMX_CACHE_IMAGE    0x04 /** Images used by maps and tilesets, image layers, and tiles. */
 #define TMX_CACHE_ALL      0xFF /** Targets all supported cache types. */
 
 /* @} */
@@ -45,15 +44,6 @@
 #define tmxCacheTryGetTemplate(cache, key, result) tmxCacheTryGet((cache), (key), (void**)(result), TMX_CACHE_TEMPLATE)
 
 /**
- * Helper macro to retrieve a image from the cache.
- * @param[in] cache The cache to query.
- * @param[in] key The key of the item to retrieve.
- * @param[out] result The address of an image pointer to store the result upon success.
- * @return @c TMX_TRUE when object was successfully retrieved, otherwise @c TMX_FALSE
- */
-#define tmxCacheTryGetImage(cache, key, result) tmxCacheTryGet((cache), (key), (void**)(result), TMX_CACHE_IMAGE)
-
-/**
  * Helper macro to add a tileset to the cache.
  * @param[in] cache The cache to add an item to.
  * @param[in] key The key that will be used to store/retrieve the item.
@@ -70,15 +60,6 @@
  * @return @c TMX_TRUE when object was successfully added, otherwise @c TMX_FALSE if insertion failed.
  */
 #define tmxCacheAddTemplate(cache, key, template) tmxCacheAdd(cache, key, template, TMX_CACHE_TEMPLATE)
-
-/**
- * Helper macro to add an image to the cache.
- * @param[in] cache The cache to add an item to.
- * @param[in] key The key that will be used to store/retrieve the item.
- * @param[in] image A pointer to an image.
- * @return @c TMX_TRUE when object was successfully added, otherwise @c TMX_FALSE if insertion failed.
- */
-#define tmxCacheAddImage(cache, key, image) tmxCacheAdd(cache, key, image, TMX_CACHE_IMAGE)
 
 /**
  * @brief Attempts to add an item of the specifed type to the cache. If the key already exists in the specified target, it will not be

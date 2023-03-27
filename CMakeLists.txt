@@ -7,18 +7,33 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
 
 set(TMX_SOURCES 
+    src/cJSON.c
     src/common.c
     src/compression.c
     src/cwalk.c
     src/error.c
-    src/map.c
+    src/parse.c
+    src/parse.h
+    src/parse_json.c
+    src/parse_xml.c
     src/memory.c
     src/properties.c
     src/xml.c
     src/yxml.c)
 
+
+if(TMX_NO_ZSTD)
+message("Disabled Zstandard support from ${PROJECT_NAME}")
+add_compile_definitions(-DTMX_NO_ZSTD)
+else()
+message("Compiling ${PROJECT_NAME} with Zstandard support")
+list(APPEND TMX_SOURCES src/zstd.c)
+endif()
+
 add_library(tmx SHARED ${TMX_SOURCES})
 target_compile_options(tmx PRIVATE -Wall -g -std=c99)
+
+
 
 add_compile_definitions(-DTMX_DEBUG -DTMX_WARN_UNHANDLED)
 
