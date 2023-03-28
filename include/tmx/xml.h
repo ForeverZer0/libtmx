@@ -52,7 +52,7 @@ void tmxXmlReaderFree(TMXxmlreader *xml);
  * @note The @a name value is only valid until the parser preforms its next action, and must
  * be copied if it needs to be retained.
  */
-TMX_BOOL_T tmxXmlReadElement(TMXxmlreader *xml, const char **name, size_t *nameSize);
+TMX_BOOL tmxXmlReadElement(TMXxmlreader *xml, const char **name, size_t *nameSize);
 
 /**
  * @brief Reads the inner string contents of an element from the current position in the stream.
@@ -67,7 +67,7 @@ TMX_BOOL_T tmxXmlReadElement(TMXxmlreader *xml, const char **name, size_t *nameS
  * @note The @a contents value is only valid until the parser preforms its next action, and must
  * be copied if it needs to be retained.
  */
-TMX_BOOL_T tmxXmlReadStringContents(TMXxmlreader *xml, const char **contents, size_t *contentsSize, TMX_BOOL_T trim);
+TMX_BOOL tmxXmlReadStringContents(TMXxmlreader *xml, const char **contents, size_t *contentsSize, TMX_BOOL trim);
 
 /**
  * @brief Attempts to read an attribute from the current position in the stream.
@@ -81,7 +81,7 @@ TMX_BOOL_T tmxXmlReadStringContents(TMXxmlreader *xml, const char **contents, si
  * @note The @a name and @a value are only valid until the parser preforms its next action, and must
  * be copied if they need to be retained.
  */
-TMX_BOOL_T tmxXmlReadAttr(TMXxmlreader *xml, const char **name, const char **value);
+TMX_BOOL tmxXmlReadAttr(TMXxmlreader *xml, const char **name, const char **value);
 
 /**
  * @brief Moves the cursor position to the beginning of the content section of an element, which may be either
@@ -90,7 +90,7 @@ TMX_BOOL_T tmxXmlReadAttr(TMXxmlreader *xml, const char **name, const char **val
  * @param[in] xml The parser state.
  * @return @ref TMX_TRUE if current element has inner contents, otherwise @ref TMX_FALSE.
  */
-TMX_BOOL_T tmxXmlMoveToContent(TMXxmlreader *xml);
+TMX_BOOL tmxXmlMoveToContent(TMXxmlreader *xml);
 
 /**
  * @brief Retrieves the name of the current element.
@@ -121,6 +121,6 @@ void tmxXmlMoveToElement(TMXxmlreader *xml, const char *name);
  * @param[in] name The element name to test.
  * @return @ref TMX_TRUE if element name matches, otherwise @ref TMX_FALSE.
  */
-TMX_BOOL_T tmxXmlAssertElement(TMXxmlreader *xml, const char *name);
+TMX_BOOL tmxXmlAssertElement(TMXxmlreader *xml, const char *name);
 
 #endif /* TMX_XML_H */

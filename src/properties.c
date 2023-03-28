@@ -1,6 +1,6 @@
 #include "internal.h"
 
-TMXbool
+TMX_BOOL
 tmxTryGetProperty(const TMXproperties *properties, const char *name, TMXproperty **property)
 {
     if (!properties || !name)
@@ -53,7 +53,7 @@ tmxPropertyDup(TMXproperties *src)
 
     switch (src->value.type)
     {
-        case TMX_UNSPECIFIED:
+        case TMX_PROPERTY_UNSPECIFIED:
         case TMX_PROPERTY_FILE:
         case TMX_PROPERTY_STRING: dst->value.value.string = tmxStringDup(src->value.value.string); break;
         case TMX_PROPERTY_INTEGER:

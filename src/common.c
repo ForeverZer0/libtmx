@@ -69,13 +69,13 @@ struct TMXentry
 
 struct TMXcache
 {
-    TMXflag flags;
+    TMX_CACHE_TARGET flags;
     struct TMXentry *tilesets;
     struct TMXentry *templates;
 };
 
-TMXbool
-tmxCacheTryGet(TMXcache *cache, const char *key, void **result, TMXflag target)
+TMX_BOOL
+tmxCacheTryGet(TMXcache *cache, const char *key, void **result, TMX_CACHE_TARGET target)
 {
     if (!cache || !key || !*result || target == TMX_CACHE_NONE)
         return TMX_FALSE;
@@ -105,8 +105,8 @@ tmxCacheTryGet(TMXcache *cache, const char *key, void **result, TMXflag target)
     return TMX_FALSE;
 }
 
-TMXbool
-tmxCacheAdd(TMXcache *cache, const char *key, void *value, TMXflag target)
+TMX_BOOL
+tmxCacheAdd(TMXcache *cache, const char *key, void *value, TMX_CACHE_TARGET target)
 {
     if (!cache || !key || !value || target == TMX_CACHE_NONE || !TMX_FLAG(cache->flags, target))
         return TMX_FALSE;
@@ -139,8 +139,8 @@ tmxCacheAdd(TMXcache *cache, const char *key, void *value, TMXflag target)
     return TMX_TRUE;
 }
 
-TMXbool
-tmxCacheRemove(TMXcache *cache, const char *key, TMXflag target)
+TMX_BOOL
+tmxCacheRemove(TMXcache *cache, const char *key, TMX_CACHE_TARGET target)
 {
     if (!cache || !key || target == TMX_CACHE_NONE)
         return TMX_FALSE;
@@ -169,6 +169,7 @@ tmxCacheRemove(TMXcache *cache, const char *key, TMXflag target)
         {
             case TMX_CACHE_TILESET: ((TMXtileset *) entry->value)->flags &= ~(TMX_FLAG_CACHED); break;
             case TMX_CACHE_TEMPLATE: ((TMXtemplate *) entry->value)->flags &= ~(TMX_FLAG_CACHED); break;
+            default: break; // Compiler complains if not here...
         }
         return TMX_TRUE;
     }
@@ -176,7 +177,7 @@ tmxCacheRemove(TMXcache *cache, const char *key, TMXflag target)
 }
 
 size_t
-tmxCacheClear(TMXcache *cache, TMXflag targets)
+tmxCacheClear(TMXcache *cache, TMX_CACHE_TARGET targets)
 {
     if (!cache || targets == TMX_CACHE_NONE)
         return 0;
@@ -216,7 +217,7 @@ tmxCacheClear(TMXcache *cache, TMXflag targets)
 }
 
 size_t
-tmxCacheCount(TMXcache *cache, TMXflag targets)
+tmxCacheCount(TMXcache *cache, TMX_CACHE_TARGET targets)
 {
     if (!cache)
         return 0;
@@ -233,7 +234,7 @@ tmxCacheCount(TMXcache *cache, TMXflag targets)
 }
 
 TMXcache *
-tmxCacheCreate(TMXflag targets)
+tmxCacheCreate(TMX_CACHE_TARGET targets)
 {
     TMXcache *cache = tmxCalloc(1, sizeof(TMXcache));
     cache->flags    = targets;
@@ -268,6 +269,8 @@ static TMX_INLINE TMXtile *tmxGetTile(TMXmap *map, TMXgid gid)
 {
     for (size_t i = 0; i < map->tileset_count; i++)
     {
+
+
         // TODO: Tilesets are ordered by first GID, but maybe still check range Just-In-Case™ 
         // What if someone sorts the list to suit their own needs?
         if (gid >= map->tilesets[i].first_gid)
@@ -277,7 +280,7 @@ static TMX_INLINE TMXtile *tmxGetTile(TMXmap *map, TMXgid gid)
 }
 
 void
-tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfunc foreachFunc)
+tmxTileForeach(TMXmap *map, TMXlayer *layer, TMX_BOOL includeEmpty, TMXforeachfunc foreachFunc)
 {
     if (!map || !layer || !foreachFunc || layer->type != TMX_LAYER_TILE)
     {
@@ -357,16 +360,22 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
 
     if (!TMX_FLAG(dst->flags, TMX_FLAG_NAME) && src->name)
         dst->name = tmxStringDup(src->name);
+
     if (!TMX_FLAG(dst->flags, TMX_FLAG_CLASS) && src->class)
         dst->class = tmxStringDup(src->class);
+
     if (!TMX_FLAG(dst->flags, TMX_FLAG_GID))
         dst->gid = src->gid;
+
     if (!TMX_FLAG(dst->flags, TMX_FLAG_POSITION))
         dst->position = src->position;
+
     if (!TMX_FLAG(dst->flags, TMX_FLAG_SIZE))
         dst->size = src->size;
+
     if (!TMX_FLAG(dst->flags, TMX_FLAG_ROTATION))
         dst->rotation = src->rotation;
+
     if (!TMX_FLAG(dst->flags, TMX_FLAG_VISIBLE))
         dst->visible = src->visible;
 
@@ -394,21 +403,11 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
         if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_STRIKEOUT) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_STRIKEOUT))
             dst->text->style |= TMX_FONT_STYLE_STRIKEOUT;
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_HALIGN))
-        {
-            if (TMX_FLAG(src->flags, TMX_FLAG_HALIGN))
-                dst->text->align |= (src->text->align & ~TMX_ALIGN_CENTER_V);
-            else
-                dst->text->align |= TMX_ALIGN_LEFT;
-        }
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_HALIGN) && TMX_FLAG(src->flags, TMX_FLAG_HALIGN))
+            dst->text->align |= (src->text->align & ~TMX_ALIGN_CENTER_V);
         
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_VALIGN))
-        {
-            if (TMX_FLAG(src->flags, TMX_FLAG_VALIGN))
-                dst->text->align |= (src->text->align & ~TMX_ALIGN_CENTER_H);
-            else
-                dst->text->align |= TMX_ALIGN_TOP;
-        }
+        if (!TMX_FLAG(dst->flags, TMX_FLAG_VALIGN) && TMX_FLAG(src->flags, TMX_FLAG_VALIGN))
+            dst->text->align |= (src->text->align & ~TMX_ALIGN_CENTER_H);
 
         if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_SIZE))
             dst->text->pixel_size = src->text->pixel_size;

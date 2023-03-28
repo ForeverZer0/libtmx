@@ -42,12 +42,13 @@ tmxParseColor(const char *str)
     return color;
 }
 
-static void tmxErrorInvalidEnum(const char *enumName, const char *value)
+static void
+tmxErrorInvalidEnum(const char *enumName, const char *value)
 {
     tmxErrorFormat(TMX_ERR_VALUE, "Unrecognized \"%s\" \"%s\" specified.", value ? value : ""); // TODO
 }
 
-TMXenum
+TMX_PROPERTY_TYPE
 tmxParsePropertyType(const char *value)
 {
     if (STREQL(value, "string"))
@@ -68,10 +69,10 @@ tmxParsePropertyType(const char *value)
         return TMX_PROPERTY_CLASS;
 
     tmxErrorInvalidEnum("property type", value);
-    return TMX_UNSPECIFIED;
+    return TMX_PROPERTY_UNSPECIFIED;
 }
 
-TMXenum
+TMX_ORIENTATION
 tmxParseOrientation(const char *value)
 {
     if STREQL (value, "orthogonal")
@@ -84,10 +85,10 @@ tmxParseOrientation(const char *value)
         return TMX_ORIENTATION_HEXAGONAL;
 
     tmxErrorInvalidEnum("orientation", value);
-    return TMX_UNSPECIFIED;
+    return TMX_ORIENTATION_UNSPECIFIED;
 }
 
-TMXenum
+TMX_RENDER_ORDER
 tmxParseRenderOrder(const char *value)
 {
     if (STREQL(value, "right-down"))
@@ -103,7 +104,7 @@ tmxParseRenderOrder(const char *value)
     return TMX_UNSPECIFIED;
 }
 
-TMXenum
+TMX_STAGGER_AXIS
 tmxParseStaggerAxis(const char *value)
 {
     if (STREQL(value, "x"))
@@ -115,7 +116,7 @@ tmxParseStaggerAxis(const char *value)
     return TMX_UNSPECIFIED;
 }
 
-TMXenum
+TMX_STAGGER_INDEX
 tmxParseStaggerIndex(const char *value)
 {
     if (STREQL(value, "even"))
@@ -127,8 +128,8 @@ tmxParseStaggerIndex(const char *value)
     return TMX_UNSPECIFIED;
 }
 
-TMXenum
-tmxParseLayerType(const char *value, TMXbool infinite)
+TMX_LAYER_TYPE
+tmxParseLayerType(const char *value, TMX_BOOL infinite)
 {
     if (STREQL(value, "layer") || STREQL(value, "tilelayer"))
         return infinite ? TMX_LAYER_CHUNK : TMX_LAYER_TILE;
@@ -143,7 +144,7 @@ tmxParseLayerType(const char *value, TMXbool infinite)
     return TMX_UNSPECIFIED;
 }
 
-TMXenum
+TMX_DRAW_ORDER
 tmxParseDrawOrder(const char *value)
 {
     if (STREQL(value, "index"))
@@ -154,7 +155,7 @@ tmxParseDrawOrder(const char *value)
     return TMX_DRAW_TOPDOWN;
 }
 
-TMXflag
+TMX_ALIGN
 tmxParseAlignH(const char *value)
 {
     if (STREQL(value, "left"))
@@ -170,7 +171,7 @@ tmxParseAlignH(const char *value)
     return TMX_ALIGN_LEFT;
 }
 
-TMXflag
+TMX_ALIGN
 tmxParseAlignV(const char *value)
 {
     if (STREQL(value, "top"))
@@ -184,7 +185,7 @@ tmxParseAlignV(const char *value)
     return TMX_ALIGN_LEFT;
 }
 
-TMXenum
+TMX_ALIGN
 tmxParseObjectAlignment(const char *value)
 {
     if (STREQL(value, "topleft"))
@@ -205,10 +206,10 @@ tmxParseObjectAlignment(const char *value)
     if (!STREQL(value, "unspecified"))
         tmxErrorInvalidEnum(WORD_OBJECT_ALIGN, value);
 
-    return TMX_UNSPECIFIED;
+    return TMX_ALIGN_NONE;
 }
 
-TMXenum
+TMX_RENDER_SIZE
 tmxParseRenderSize(const char *value)
 {
     if (STREQL(value, "tile"))
@@ -217,10 +218,10 @@ tmxParseRenderSize(const char *value)
         return TMX_RENDER_SIZE_GRID;
 
     tmxErrorInvalidEnum(WORD_TILE_RENDER_SIZE, value);
-    return TMX_UNSPECIFIED;
+    return TMX_RENDER_SIZE_TILE;
 }
 
-TMXenum
+TMX_FILL_MODE
 tmxParseFillMode(const char *value)
 {
     if (STREQL(value, "stretch"))
@@ -229,10 +230,10 @@ tmxParseFillMode(const char *value)
         return TMX_FILL_MODE_PRESERVE;
 
     tmxErrorInvalidEnum(WORD_FILL_MODE, value);
-    return TMX_UNSPECIFIED;
+    return TMX_FILL_MODE_STRETCH;
 }
 
-TMXenum
+TMX_ENCODING
 tmxParseEncoding(const char *value)
 {
     if (STREQL(value, "base64"))
@@ -242,10 +243,10 @@ tmxParseEncoding(const char *value)
 
     if (!STREQL(value, "none"))
         tmxErrorInvalidEnum(TMX_WORD_ENCODING, value);
-    return TMX_UNSPECIFIED;
+    return TMX_ENCODING_NONE;
 }
 
-TMXenum
+TMX_COMPRESSION
 tmxParseCompression(const char *value)
 {
     if (STREQL(value, "gzip"))
@@ -257,13 +258,33 @@ tmxParseCompression(const char *value)
 
     if (!STREQL(value, "none"))
         tmxErrorInvalidEnum(TMX_WORD_COMPRESSION, value);
-    return TMX_UNSPECIFIED;
+    return TMX_COMPRESSION_NONE;
 }
 
 #pragma endregion
 
+void tmxTilesetConfigureDefaults(TMXtileset *tileset, TMXmap *map)
+{
+    if (!map)
+        return;
+
+    if (!tileset->version && map->version)
+        tileset->version = tmxStringDup(map->version);
+    if (!tileset->tiled_version && map->tiled_version)
+        tileset->tiled_version = tmxStringDup(map->tiled_version);
+
+    // Set defaults for object alignment depending on map orientation if was not specified
+    if (tileset->object_align == TMX_ALIGN_NONE)
+    {
+        if (map->orientation == TMX_ORIENTATION_ORTHOGONAL)
+            tileset->object_align = (TMX_ALIGN_BOTTOM | TMX_ALIGN_LEFT);
+        else if (map->orientation == TMX_ORIENTATION_ISOMETRIC)
+            tileset->object_align = TMX_ALIGN_BOTTOM;
+    }
+}
+
 void
-tmxInitTilesetTiles(TMXtileset *tileset, TMXbool isCollection)
+tmxInitTilesetTiles(TMXtileset *tileset, TMX_BOOL isCollection)
 {
     if (!tileset->tile_count)
         return;
@@ -281,12 +302,12 @@ tmxInitTilesetTiles(TMXtileset *tileset, TMXbool isCollection)
             y = (i / tileset->columns) * tileset->tile_size.h;
 
             tileset->tiles[i].id   = (TMXtid) i;
-            tileset->tiles[i].rect = (TMXrect){.x=x, .y=y, .w=tileset->tile_size.w, .h=tileset->tile_size.h};
+            tileset->tiles[i].rect = (TMXrect){.x = x, .y = y, .w = tileset->tile_size.w, .h = tileset->tile_size.h};
         }
     }
 }
 
-static TMX_INLINE TMXenum
+static TMX_INLINE TMX_FORMAT
 tmxDetectFormat(const char *text)
 {
     if (!text)
@@ -367,7 +388,7 @@ tmxContextDeinit(TMXcontext *context)
 }
 
 static TMX_INLINE TMXmap *
-tmxParseMapImpl(const char *text, const char *filename, TMXcache *cache, TMXenum format)
+tmxParseMapImpl(const char *text, const char *filename, TMXcache *cache, TMX_FORMAT format)
 {
     TMXmap *map;
     TMXcontext context;
@@ -388,7 +409,7 @@ tmxParseMapImpl(const char *text, const char *filename, TMXcache *cache, TMXenum
 }
 
 TMXmap *
-tmxParseMap(const char *text, TMXcache *cache, TMXenum format)
+tmxParseMap(const char *text, TMXcache *cache, TMX_FORMAT format)
 {
     if (!text)
     {
@@ -403,7 +424,7 @@ tmxParseMap(const char *text, TMXcache *cache, TMXenum format)
 }
 
 TMXmap *
-tmxLoadMap(const char *filename, TMXcache *cache, TMXenum format)
+tmxLoadMap(const char *filename, TMXcache *cache, TMX_FORMAT format)
 {
     if (!filename)
     {
@@ -425,7 +446,7 @@ tmxLoadMap(const char *filename, TMXcache *cache, TMXenum format)
 }
 
 static TMX_INLINE TMXtileset *
-tmxParseTilesetImpl(const char *text, const char *filename, TMXcache *cache, TMXenum format)
+tmxParseTilesetImpl(const char *text, const char *filename, TMXcache *cache, TMX_FORMAT format)
 {
     TMXtileset *tileset;
     TMXcontext context;
@@ -458,7 +479,7 @@ tmxParseTilesetImpl(const char *text, const char *filename, TMXcache *cache, TMX
 }
 
 TMXtileset *
-tmxParseTileset(const char *text, TMXcache *cache, TMXenum format)
+tmxParseTileset(const char *text, TMXcache *cache, TMX_FORMAT format)
 {
     if (!text)
     {
@@ -473,7 +494,7 @@ tmxParseTileset(const char *text, TMXcache *cache, TMXenum format)
 }
 
 TMXtileset *
-tmxLoadTileset(const char *filename, TMXcache *cache, TMXenum format)
+tmxLoadTileset(const char *filename, TMXcache *cache, TMX_FORMAT format)
 {
     if (!filename)
     {
@@ -495,7 +516,7 @@ tmxLoadTileset(const char *filename, TMXcache *cache, TMXenum format)
 }
 
 static TMX_INLINE TMXtemplate *
-tmxParseTemplateImpl(const char *text, const char *filename, TMXcache *cache, TMXenum format)
+tmxParseTemplateImpl(const char *text, const char *filename, TMXcache *cache, TMX_FORMAT format)
 {
     TMXtemplate *template;
     TMXcontext context;
@@ -521,7 +542,7 @@ tmxParseTemplateImpl(const char *text, const char *filename, TMXcache *cache, TM
 }
 
 TMXtemplate *
-tmxParseTemplate(const char *text, TMXcache *cache, TMXenum format)
+tmxParseTemplate(const char *text, TMXcache *cache, TMX_FORMAT format)
 {
     if (!text)
     {
@@ -536,7 +557,7 @@ tmxParseTemplate(const char *text, TMXcache *cache, TMXenum format)
 }
 
 TMXtemplate *
-tmxLoadTemplate(const char *filename, TMXcache *cache, TMXenum format)
+tmxLoadTemplate(const char *filename, TMXcache *cache, TMX_FORMAT format)
 {
     if (!filename)
     {

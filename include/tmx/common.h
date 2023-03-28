@@ -36,8 +36,8 @@
 #define TMX_COLOR_T TMXcolor
 #endif
 
-#ifndef TMX_BOOL_T
-#define TMX_BOOL_T int /** The integral type used for booleans. */
+#ifndef TMX_BOOL
+#define TMX_BOOL int /** The integral type used for booleans. */
 #endif
 
 #ifndef TMX_INLINE

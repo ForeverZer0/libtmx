@@ -171,7 +171,7 @@ tmxInflateZstd(const void *input, size_t inputSize, void *output, size_t outputS
 #endif
 
 size_t
-tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMXenum compression)
+tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMX_COMPRESSION compression)
 {
     size_t outputSize, base64Size, result = 0;
     void *base64Data;

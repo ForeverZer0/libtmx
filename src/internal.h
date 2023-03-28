@@ -1,6 +1,12 @@
 /**
  * @file internal.h
- * @brief Contains common helper macros and functions that are not part of the public API.
+ * @author Eric Freed
+ * @brief Provides functions that are part of the private API ans shared across modules.
+ * @version 0.1
+ * @date 2023-03-28
+ * 
+ * @copyright Copyright (c) 2023
+ * 
  */
 #ifndef TMX_UTILS_H
 #define TMX_UTILS_H
@@ -30,14 +36,14 @@ struct TMXproperties
  * @brief Emits an error of the specified type with a generic error message.
  * @param errno An error code indicating the general type of error that occurred.
  */
-void tmxError(TMXenum errno);
+void tmxError(TMX_ERRNO errno);
 
 /**
  * @brief Emits an error of the specified type and supplies a brief message describing it.
  * @param errno An error code indicating the general type of error that occurred.
  * @param message The message to supply with the error.
  */
-void tmxErrorMessage(TMXenum errno, const char *message);
+void tmxErrorMessage(TMX_ERRNO errno, const char *message);
 
 /**
  * @brief Emits an error of the specified type and supplies a brief message describing it.
@@ -45,7 +51,7 @@ void tmxErrorMessage(TMXenum errno, const char *message);
  * @param message A @c sprintf style format message to supply with the error.
  * @param ... Arguments for the format string.
  */
-void tmxErrorFormat(TMXenum errno, const char *format, ...);
+void tmxErrorFormat(TMX_ERRNO errno, const char *format, ...);
 
 /**
  * Allocates and copies a string.

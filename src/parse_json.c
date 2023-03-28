@@ -99,12 +99,12 @@ tmxJsonParseProperties(TMXcontext *context, cJSON *array)
         }
 
         entry->value.class = JSON_STRING(item, WORD_PROPERTY_TYPE);
-        entry->value.type  = JSON_INTEGER(item, TMX_WORD_TYPE, TMX_UNSPECIFIED);
+        entry->value.type  = JSON_INTEGER(item, TMX_WORD_TYPE, TMX_PROPERTY_UNSPECIFIED);
         value              = cJSON_GetObjectItemCaseSensitive(item, TMX_WORD_VALUE);
 
         switch (entry->value.type)
         {
-            case TMX_UNSPECIFIED:
+            case TMX_PROPERTY_UNSPECIFIED:
             case TMX_PROPERTY_STRING:
             case TMX_PROPERTY_FILE: entry->value.value.string = tmxStringDup(value->valuestring); break;
             case TMX_PROPERTY_INTEGER:
@@ -138,8 +138,8 @@ static struct TMXtext *
 tmxJsonParseObjectText(TMXcontext *context, cJSON *obj, TMXobject *object)
 {
     struct TMXtext *text = TMX_ALLOC(struct TMXtext);
-    TMXflag halign       = TMX_ALIGN_LEFT;
-    TMXflag valign       = TMX_ALIGN_TOP;
+    TMX_ALIGN halign       = TMX_ALIGN_LEFT;
+    TMX_ALIGN valign       = TMX_ALIGN_TOP;
     text->pixel_size     = 16;
     text->kerning        = TMX_TRUE;
     text->wrap           = TMX_TRUE;
@@ -346,7 +346,7 @@ tmxJsonParseObject(TMXcontext *context, cJSON *obj)
 }
 
 static TMX_INLINE void
-tmxJsonParseDataType(cJSON *obj, TMXenum *encoding, TMXenum *compression)
+tmxJsonParseDataType(cJSON *obj, TMX_ENCODING *encoding, TMX_COMPRESSION *compression)
 {
     *encoding    = TMX_ENCODING_NONE;
     *compression = TMX_COMPRESSION_NONE;
@@ -362,7 +362,7 @@ tmxJsonParseDataType(cJSON *obj, TMXenum *encoding, TMXenum *compression)
 }
 
 static TMXgid *
-tmxJsonParseTileData(cJSON *obj, TMXenum encoding, TMXenum compression, size_t count)
+tmxJsonParseTileData(cJSON *obj, TMX_ENCODING encoding, TMX_COMPRESSION compression, size_t count)
 {
     if (!count)
         return NULL;
@@ -409,12 +409,13 @@ tmxJsonParseLayer(TMXcontext *context, cJSON *obj)
     size_t i;
     cJSON *child, *arrayChild;
     const char *name;
-    TMXenum encoding, compression;
+    TMX_ENCODING encoding;
+    TMX_COMPRESSION compression;
 
     child = cJSON_GetObjectItemCaseSensitive(obj, TMX_WORD_TYPE);
     if (child)
     {
-        TMXbool infinite = TMX_FALSE;
+        TMX_BOOL infinite = TMX_FALSE;
         if (context->map)
             infinite = context->map->infinite;
         else
@@ -609,7 +610,7 @@ tmxJsonParseCollision(TMXcontext *context, cJSON *obj, TMXcollision *collision)
 }
 
 static void
-tmxJsonParseTile(TMXcontext *context, cJSON *obj, TMXtile *tiles, TMXbool isCollection, size_t tileIndex)
+tmxJsonParseTile(TMXcontext *context, cJSON *obj, TMXtile *tiles, TMX_BOOL isCollection, size_t tileIndex)
 {
     cJSON *child;
     const char *name;
@@ -822,21 +823,13 @@ tmxJsonParseTileset(TMXcontext *context, cJSON *obj, TMXgid *firstGid)
         TMX_ASSERT(cJSON_IsArray(tiles));
 
         size_t tileIndex     = 0;
-        TMXbool isCollection = (TMXbool) tileset->columns == 0;
+        TMX_BOOL isCollection = (TMX_BOOL) tileset->columns == 0;
         tmxInitTilesetTiles(tileset, isCollection);
         cJSON_ArrayForEach(child, tiles) { tmxJsonParseTile(context, child, tileset->tiles, isCollection, tileIndex++); }
     }
 
     return tileset;
 }
-
-/*
-
-tiles
-array
-Array of Tiles (optional)
-
- */
 
 static TMXmap *
 tmxJsonParseMap(TMXcontext *context, cJSON *obj)
@@ -879,7 +872,7 @@ tmxJsonParseMap(TMXcontext *context, cJSON *obj)
         else if (STREQL(name, WORD_PARALLAX_ORIGIN_Y))
             map->parallax_origin.y = (float) cJSON_GetNumberValue(child);
         else if (STREQL(name, WORD_RENDER_ORDER))
-            map->orientation = tmxParseRenderOrder(child->valuestring);
+            map->render_order = tmxParseRenderOrder(child->valuestring);
         else if (STREQL(name, WORD_STAGGER_AXIS))
             map->stagger.axis = tmxParseStaggerAxis(child->valuestring);
         else if (STREQL(name, WORD_STAGGER_INDEX))
@@ -920,6 +913,7 @@ tmxJsonParseMap(TMXcontext *context, cJSON *obj)
             {
                 mapTileset          = &map->tilesets[i++];
                 mapTileset->tileset = tmxJsonParseTileset(context, arrayItem, &mapTileset->first_gid);
+                tmxTilesetConfigureDefaults(mapTileset->tileset, map);
             }
         }
         else

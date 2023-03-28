@@ -127,10 +127,11 @@ tmxFreeProperties(TMXproperties *properties)
         HASH_DEL(properties, entry);
         switch (entry->value.type)
         {
-            case TMX_UNSPECIFIED:
+            case TMX_PROPERTY_UNSPECIFIED:
             case TMX_PROPERTY_STRING:
             case TMX_PROPERTY_FILE: tmxFree((void *) entry->value.value.string); break;
             case TMX_PROPERTY_CLASS: tmxFreeProperties(entry->value.value.properties); break;
+            default: break; // Nothing to free for other types.
         }
         // The key is the same pointer as the property name, so no need to free it, but it must be freed after
         tmxFree((void *) entry->value.name);

@@ -17,7 +17,7 @@ struct TMXxmlreader
     const char *str;  /** The input string that is being parsed. */
 };
 
-static TMX_INLINE TMX_BOOL_T
+static TMX_INLINE TMX_BOOL
 tmxXmlNextToken(TMXxmlreader *xml)
 {
     xml->str++;
@@ -38,7 +38,7 @@ tmxXmlElementName(const TMXxmlreader *xml)
     return xml->reader.elem;
 }
 
-TMX_BOOL_T
+TMX_BOOL
 tmxXmlMoveToContent(TMXxmlreader *xml)
 {
     tmxXmlResetBuffer(xml);
@@ -57,7 +57,7 @@ tmxXmlMoveToContent(TMXxmlreader *xml)
     return TMX_FALSE;
 }
 
-TMX_BOOL_T
+TMX_BOOL
 tmxXmlAssertElement(TMXxmlreader *xml, const char *name)
 {
     if (strcmp(xml->reader.elem, name) == 0)
@@ -67,7 +67,7 @@ tmxXmlAssertElement(TMXxmlreader *xml, const char *name)
     return TMX_FALSE;
 }
 
-TMX_BOOL_T
+TMX_BOOL
 tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
 {
 
@@ -100,7 +100,7 @@ tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
     // return TMX_FALSE;
 }
 
-TMX_BOOL_T
+TMX_BOOL
 tmxXmlReadStringContents(TMXxmlreader *xml, const char **contents, size_t *contentsSize, int trim)
 {
     int c;
@@ -158,7 +158,7 @@ tmxXmlReadStringContents(TMXxmlreader *xml, const char **contents, size_t *conte
     return TMX_TRUE;
 }
 
-TMX_BOOL_T
+TMX_BOOL
 tmxXmlReadAttr(TMXxmlreader *xml, const char **name, const char **value)
 {
     // The only two valid positions the parser should be positioned at.

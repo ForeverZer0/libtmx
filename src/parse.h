@@ -23,7 +23,7 @@ typedef struct TMXcontext
     TMXmap *map;           /** An optional parent map for this object. */
     char *text;            /** The text pointer positioned after the BOM, if present. */
     const char *constText; /** The original text pointer. */
-    TMXbool freeText;      /** Flag indicating if the text is owned by this context and needs freed with it. */
+    TMX_BOOL freeText;      /** Flag indicating if the text is owned by this context and needs freed with it. */
 } TMXcontext;
 
 /**
@@ -123,35 +123,35 @@ TMX_COLOR_T tmxParseColor(const char *str);
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParsePropertyType(const char *value);
+TMX_PROPERTY_TYPE tmxParsePropertyType(const char *value);
 
 /**
  * @brief Parses an "orientation" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseOrientation(const char *value);
+TMX_ORIENTATION tmxParseOrientation(const char *value);
 
 /**
  * @brief Parses a "renderorder" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseRenderOrder(const char *value);
+TMX_RENDER_ORDER tmxParseRenderOrder(const char *value);
 
 /**
  * @brief Parses a "staggeraxis" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseStaggerAxis(const char *value);
+TMX_STAGGER_AXIS tmxParseStaggerAxis(const char *value);
 
 /**
  * @brief Parses a "staggerindex" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseStaggerIndex(const char *value);
+TMX_STAGGER_INDEX tmxParseStaggerIndex(const char *value);
 
 /**
  * @brief Parses the name of a layer type into an enumeration.
@@ -159,63 +159,63 @@ TMXenum tmxParseStaggerIndex(const char *value);
  * @param[in] infinite Flag indicating if map is infinite. Used to differentiate tile/chunk layers.
  * @return The enumeration value.
  */
-TMXenum tmxParseLayerType(const char *value, TMXbool infinite);
+TMX_LAYER_TYPE tmxParseLayerType(const char *value, TMX_BOOL infinite);
 
 /**
  * @brief Parses a "draworder" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseDrawOrder(const char *value);
+TMX_DRAW_ORDER tmxParseDrawOrder(const char *value);
 
 /**
  * @brief Parses an "halign" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXflag tmxParseAlignH(const char *value);
+TMX_ALIGN tmxParseAlignH(const char *value);
 
 /**
  * @brief Parses a "valign" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXflag tmxParseAlignV(const char *value);
+TMX_ALIGN tmxParseAlignV(const char *value);
 
 /**
  * @brief Parses an "objectalignment" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseObjectAlignment(const char *value);
+TMX_ALIGN tmxParseObjectAlignment(const char *value);
 
 /**
  * @brief Parses a "tilerendersize" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseRenderSize(const char *value);
+TMX_RENDER_SIZE tmxParseRenderSize(const char *value);
 
 /**
  * @brief Parses a "fillmode" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseFillMode(const char *value);
+TMX_FILL_MODE tmxParseFillMode(const char *value);
 
 /**
  * @brief Parses an "encoding" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseEncoding(const char *value);
+TMX_ENCODING tmxParseEncoding(const char *value);
 
 /**
  * @brief Parses a "compression" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMXenum tmxParseCompression(const char *value);
+TMX_COMPRESSION tmxParseCompression(const char *value);
 
 /**
  * @brief Initializes the tiles of a tilesets, allocating memory and initializing defaults.
@@ -223,7 +223,15 @@ TMXenum tmxParseCompression(const char *value);
  * @param[in] tileset The tileset with tiles to initialize.
  * @param[in] isCollection Flag indicating if tileset is an image collection or traditional grid based on single image.
  */
-void tmxInitTilesetTiles(TMXtileset *tileset, TMXbool isCollection);
+void tmxInitTilesetTiles(TMXtileset *tileset, TMX_BOOL isCollection);
+
+/**
+ * @brief Updates tileset values that are often unspecified and have defaults that depend on map.
+ * 
+ * @param[in] tileset The tileset to configure.
+ * @param[in] map The map instance, or @c NULL.
+ */
+void tmxTilesetConfigureDefaults(TMXtileset *tileset, TMXmap *map);
 
 /**
  * @brief Retrieves the number of values in the CSV-encoded @a input string.
@@ -258,6 +266,6 @@ size_t tmxCsvDecode(const char *input, size_t inputSize, TMXgid *output, size_t 
  *
  * @return The number of tile IDs written to the @a output buffer.
  */
-size_t tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMXenum compression);
+size_t tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMX_COMPRESSION compression);
 
 #endif /* TMX_PARSE_H */

@@ -50,7 +50,7 @@ tmxParsePoints(char *value, struct TMXcoords *coords)
 }
 
 static void
-tmxXmlParseDataType(TMXcontext *context, TMXenum *encoding, TMXenum *compression)
+tmxXmlParseDataType(TMXcontext *context, TMX_ENCODING *encoding, TMX_COMPRESSION *compression)
 {
     *encoding    = TMX_ENCODING_NONE;
     *compression = TMX_COMPRESSION_NONE;
@@ -103,7 +103,7 @@ tmxXmlParseProperties(TMXcontext *context)
                 // The type is always defined before the value.
                 switch (property->type)
                 {
-                    case TMX_UNSPECIFIED:
+                    case TMX_PROPERTY_UNSPECIFIED:
                     case TMX_PROPERTY_FILE:
                     case TMX_PROPERTY_STRING: property->value.string = tmxStringDup(value); break;
                     case TMX_PROPERTY_INTEGER:
@@ -175,7 +175,8 @@ tmxXmlParseImage(TMXcontext *context)
 
         image->flags |= TMX_FLAG_EMBEDDED;
 
-        TMXenum encoding, compression;
+        TMX_ENCODING encoding;
+        TMX_COMPRESSION compression;
         tmxXmlParseDataType(context, &encoding, &compression);
         tmxXmlMoveToContent(context->xml);
 
@@ -211,8 +212,8 @@ tmxXmlParseObjectText(TMXcontext *context, TMXobject *obj)
     size_t size;
 
     // Set defaults
-    TMXflag halign   = TMX_ALIGN_LEFT;
-    TMXflag valign   = TMX_ALIGN_TOP;
+    TMX_ALIGN halign   = TMX_ALIGN_LEFT;
+    TMX_ALIGN valign   = TMX_ALIGN_TOP;
     text->pixel_size = 16;
     text->kerning    = TMX_TRUE;
     text->wrap       = TMX_TRUE;
@@ -430,7 +431,7 @@ tmxXmlParseObject(TMXcontext *context)
 }
 
 static void
-tmxXmlParseTileIds(TMXcontext *context, TMXenum encoding, TMXenum compression, TMXgid *output, size_t outputCount)
+tmxXmlParseTileIds(TMXcontext *context, TMX_ENCODING encoding, TMX_COMPRESSION compression, TMXgid *output, size_t outputCount)
 {
     const char *str;
     size_t strSize;
@@ -485,7 +486,9 @@ tmxXmlParseTileData(TMXcontext *context, TMXlayer *layer)
     const char *name;
     const char *value;
     size_t nameSize;
-    TMXenum encoding, compression;
+    TMX_ENCODING encoding;
+    TMX_COMPRESSION compression;
+
     tmxXmlParseDataType(context, &encoding, &compression);
 
     if (context->map->infinite)
@@ -731,7 +734,7 @@ tmxParseCollision(TMXcontext *context, TMXcollision *collision)
 }
 
 static void
-tmxXmlParseTile(TMXcontext *context, TMXtile *tiles, TMXbool isCollection, size_t tileIndex)
+tmxXmlParseTile(TMXcontext *context, TMXtile *tiles, TMX_BOOL isCollection, size_t tileIndex)
 {
     const char *name;
     const char *value;
@@ -861,22 +864,8 @@ tmxXmlParseTileset(TMXcontext *context, TMXgid *firstGid)
         }
     }
 
-    if (!tileset->version && context->map)
-        tileset->version = tmxStringDup(context->map->version);
-    if (!tileset->tiled_version && context->map)
-        tileset->tiled_version = tmxStringDup(context->map->tiled_version);
-
-    // Set defaults for object alignment depending on map orientation if was not specified
-    if (tileset->object_align == TMX_UNSPECIFIED && context->map)
-    {
-        if (context->map->orientation == TMX_ORIENTATION_ORTHOGONAL)
-            tileset->object_align = (TMX_ALIGN_BOTTOM | TMX_ALIGN_LEFT);
-        else if (context->map->orientation == TMX_ORIENTATION_ISOMETRIC)
-            tileset->object_align = TMX_ALIGN_BOTTOM;
-    }
-
     size_t tileIndex     = 0;
-    TMXbool isCollection = (TMXbool) tileset->columns == 0;
+    TMX_BOOL isCollection = (TMX_BOOL) tileset->columns == 0;
     tmxInitTilesetTiles(tileset, isCollection);
 
     if (!tmxXmlMoveToContent(context->xml))
@@ -1010,6 +999,7 @@ tmxXmlParseMap(TMXcontext *context)
         else if (STREQL(name, TMX_WORD_TILESET))
         {
             mapTileset.tileset = tmxXmlParseTileset(context, &mapTileset.first_gid);
+            tmxTilesetConfigureDefaults(mapTileset.tileset, map);
             tmxArrayPush(TMXmaptileset, map->tilesets, mapTileset, map->tileset_count, tilesetCapa);
         }
         else

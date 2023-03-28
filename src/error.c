@@ -2,7 +2,7 @@
 #include <stdio.h> // Remove
 #include <stdarg.h>
 
-static TMXenum lastError;
+static TMX_ERRNO lastError;
 static TMXerrorfunc errorCallback;
 static TMXuserptr userPtrValue; 
 
@@ -14,13 +14,13 @@ tmxErrorCallback(TMXerrorfunc callback, TMXuserptr user)
 }
 
 void
-tmxError(TMXenum errno)
+tmxError(TMX_ERRNO errno)
 {
     tmxErrorMessage(errno, tmxErrorString(errno));
 }
 
 void
-tmxErrorMessage(TMXenum errno, const char *message)
+tmxErrorMessage(TMX_ERRNO errno, const char *message)
 {
     if (errno == TMX_ERR_NONE)
         return;
@@ -34,7 +34,7 @@ tmxErrorMessage(TMXenum errno, const char *message)
 }
 
 void
-tmxErrorFormat(TMXenum errno, const char *format, ...)
+tmxErrorFormat(TMX_ERRNO errno, const char *format, ...)
 {
     char buffer[TMX_MAX_ERR_MSG];
 
@@ -48,7 +48,7 @@ tmxErrorFormat(TMXenum errno, const char *format, ...)
 }
 
 const char *
-tmxErrorString(TMXenum errno)
+tmxErrorString(TMX_ERRNO errno)
 {
     switch (errno)
     {
@@ -66,10 +66,10 @@ tmxErrorString(TMXenum errno)
     }
 }
 
-TMXenum
+TMX_ERRNO
 tmxGetError(void)
 {
-    TMXenum errno = lastError;
+    TMX_ERRNO errno = lastError;
     lastError     = TMX_ERR_NONE;
     return errno;
 }
