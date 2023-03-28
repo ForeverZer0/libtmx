@@ -13,6 +13,8 @@
 .idea/**/shelf
 .vscode/
 
+scratch.*
+
 build/**/*
 
 # AWS User-specific

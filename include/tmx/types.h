@@ -30,6 +30,21 @@
 #define TMX_UNSPECIFIED 0 /** Indicates an omitted/default value. */
 #define TMX_NONE        0 /** Indicates no value. */
 
+
+#define TMX_MAX_ERR_MSG 256 /** Maximum length for error message strings, including the null-terminator. */
+
+#define TMX_ERR_NONE              0 /** No error. */
+#define TMX_ERR_WARN              1 /** A non-critical error or problem that can be recovered from occurred. */
+#define TMX_ERR_MEMORY            2 /** A memory allocation failed. */
+#define TMX_ERR_UNSUPPORTED       3 /** Unsupported feature, format, or encoding. */
+#define TMX_ERR_FORMAT            4 /** Unrecognized or unknown format. */
+#define TMX_ERR_PARAM             5 /** An invalid enumeration value was specified. */
+#define TMX_ERR_VALUE             6 /** An invalid or out of range value was specified. */
+#define TMX_ERR_INVALID_OPERATION 7 /** Attempted an operation that is invalid for the current state/context. */
+#define TMX_ERR_IO                8 /** An IO error occurred. */
+#define TMX_ERR_PARSE             9 /** A parsing error occurred. */
+
+
 #define TMX_PROPERTY_STRING  1 /** A string value. */
 #define TMX_PROPERTY_INTEGER 2 /** An integer value. */
 #define TMX_PROPERTY_FLOAT   3 /** A floating point value. */
@@ -174,6 +189,8 @@ typedef uint32_t TMXtid;
  */
 typedef TMXtid TMXgid;
 
+
+
 /**
  * @brief Represents a dimension in 2D coordinate space.
  */
@@ -275,7 +292,7 @@ typedef struct TMXproperties TMXproperties;
 typedef struct TMXproperty
 {
     const char *name;        /** The name of the property. */
-    const char *custom_type; /** The custom type of the property. */
+    const char *class; /** The custom type of the property. */
     TMXenum type;            /** Indicates the type of the property, and which value field to reference. */
     union                    /** A union containing the value of the property. Use the type to determine which field to use. */
     {
@@ -473,6 +490,7 @@ typedef struct TMXtileset
     TMXgid first_gid;
     const char *name;
     const char *class;
+    TMX_COLOR_T background_color;
     TMXsize tile_size;
     int spacing;
     int margin;
@@ -538,7 +556,7 @@ struct TMXtemplate
 
 /**
  * @brief Callback prototype for iterating a tile layer. The render order of the map is respected, and tiles
- * are yielded in the order defined by the parent `draw_order` value of the map.
+ * are yielded in the order defined by the parent map.
  *
  * @param[in] map The parent map.
  * @param[in] layer The parent tile layer within the @a map.

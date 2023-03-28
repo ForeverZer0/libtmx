@@ -3,19 +3,10 @@
 #include "parse.h"
 #include "tmx/cache.h"
 #include "tmx/compression.h"
-#include "tmx/properties.h"
+#include "internal.h"
 #include "tmx/xml.h"
 #include <stdio.h>
 
-typedef struct
-{
-    TMXcache *cache;
-    TMXmap *map;
-    const char *base_path;
-    TMXxmlreader *reader;
-    char *text;
-    TMXbool freeText;
-} TMXxml;
 
 #if defined(TMX_WARN_UNHANDLED)
 static void
@@ -68,18 +59,18 @@ tmxXmlParseDataType(TMXcontext *context, TMXenum *encoding, TMXenum *compression
     const char *name;
     const char *value;
 
-    if (!tmxXmlAssertElement(context->xml, WORD_DATA))
+    if (!tmxXmlAssertElement(context->xml, TMX_WORD_DATA))
         return;
 
     while (tmxXmlReadAttr(context->xml, &name, &value))
     {
-        if (STREQL(name, WORD_ENCODING))
+        if (STREQL(name, TMX_WORD_ENCODING))
             *encoding = tmxParseEncoding(value);
-        else if (STREQL(name, WORD_COMPRESSION))
+        else if (STREQL(name, TMX_WORD_COMPRESSION))
             *compression = tmxParseCompression(value);
         else
         {
-            tmxXmlWarnAttribute(WORD_DATA, name);
+            tmxXmlWarnAttribute(TMX_WORD_DATA, name);
         }
     }
 }
@@ -95,20 +86,20 @@ tmxXmlParseProperties(TMXcontext *context)
 
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (!STREQL(name, WORD_PROPERTY))
+        if (!STREQL(name, TMX_WORD_PROPERTY))
             continue;
 
         entry    = tmxCalloc(1, sizeof(TMXproperties));
         property = &entry->value;
         while (tmxXmlReadAttr(context->xml, &name, &value))
         {
-            if (STREQL(name, WORD_NAME))
+            if (STREQL(name, TMX_WORD_NAME))
                 property->name = tmxStringDup(value);
-            else if (STREQL(name, WORD_TYPE))
+            else if (STREQL(name, TMX_WORD_TYPE))
                 property->type = tmxParsePropertyType(value);
             else if (STREQL(name, WORD_PROPERTY_TYPE))
-                property->custom_type = value;
-            else if (STREQL(name, WORD_VALUE))
+                property->class = value;
+            else if (STREQL(name, TMX_WORD_VALUE))
             {
                 // The type is always defined before the value.
                 switch (property->type)
@@ -117,16 +108,16 @@ tmxXmlParseProperties(TMXcontext *context)
                     case TMX_PROPERTY_FILE:
                     case TMX_PROPERTY_STRING: property->value.string = tmxStringDup(value); break;
                     case TMX_PROPERTY_INTEGER:
-                    case TMX_PROPERTY_OBJECT: property->value.integer = TMX_STR2INT(value); break;
-                    case TMX_PROPERTY_FLOAT: property->value.decimal = TMX_STR2FLT(value); break;
-                    case TMX_PROPERTY_BOOL: property->value.integer = TMX_STR2BOOL(value); break;
+                    case TMX_PROPERTY_OBJECT: property->value.integer = tmxParseInt(value); break;
+                    case TMX_PROPERTY_FLOAT: property->value.decimal = tmxParseFloat(value); break;
+                    case TMX_PROPERTY_BOOL: property->value.integer = tmxParseBool(value); break;
                     case TMX_PROPERTY_COLOR: property->value.color = tmxParseColor(value); break;
                     case TMX_PROPERTY_CLASS: break;
                 }
             }
             else
             {
-                tmxXmlWarnAttribute(WORD_PROPERTY, name);
+                tmxXmlWarnAttribute(TMX_WORD_PROPERTY, name);
             }
         }
 
@@ -153,25 +144,25 @@ tmxXmlParseImage(TMXcontext *context)
 
     while (tmxXmlReadAttr(context->xml, &name, &value))
     {
-        if (STREQL(name, WORD_FORMAT))
+        if (STREQL(name, TMX_WORD_FORMAT))
             image->format = tmxStringDup(value);
-        else if (STREQL(name, WORD_SOURCE))
+        else if (STREQL(name, TMX_WORD_SOURCE))
         {
             image->source = tmxStringDup(value);
             image->flags |= TMX_FLAG_EXTERNAL;
         }
-        else if (STREQL(name, WORD_TRANS))
+        else if (STREQL(name, TMX_WORD_TRANS))
         {
             image->transparent = tmxParseColor(value);
             image->flags |= TMX_FLAG_COLOR;
         }
-        else if (STREQL(name, WORD_WIDTH))
-            image->size.w = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_HEIGHT))
-            image->size.h = TMX_STR2INT(value);
+        else if (STREQL(name, TMX_WORD_WIDTH))
+            image->size.w = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_HEIGHT))
+            image->size.h = tmxParseInt(value);
         else
         {
-            tmxXmlWarnAttribute(WORD_IMAGE, name);
+            tmxXmlWarnAttribute(TMX_WORD_IMAGE, name);
         }
     }
 
@@ -180,7 +171,7 @@ tmxXmlParseImage(TMXcontext *context)
 
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (!STREQL(name, WORD_DATA))
+        if (!STREQL(name, TMX_WORD_DATA))
             continue;
 
         image->flags |= TMX_FLAG_EMBEDDED;
@@ -241,57 +232,57 @@ tmxXmlParseObjectText(TMXcontext *context, TMXobject *obj)
         }
         else if (STREQL(name, WORD_PIXEL_SIZE))
         {
-            text->pixel_size = TMX_STR2INT(value);
+            text->pixel_size = tmxParseInt(value);
             obj->flags |= TMX_FLAG_FONT_SIZE;
         }
-        else if (STREQL(name, WORD_WRAP))
+        else if (STREQL(name, TMX_WORD_WRAP))
         {
-            text->wrap = TMX_STR2BOOL(value);
+            text->wrap = tmxParseBool(value);
             obj->flags |= TMX_FLAG_WORD_WRAP;
         }
-        else if (STREQL(name, WORD_COLOR))
+        else if (STREQL(name, TMX_WORD_COLOR))
         {
             text->color = tmxParseColor(value);
             obj->flags |= TMX_FLAG_COLOR;
         }
-        else if (STREQL(name, WORD_BOLD))
+        else if (STREQL(name, TMX_WORD_BOLD))
         {
-            text->style |= TMX_FONT_STYLE_BOLD;
+            text->style |= TMX_FONT_STYLE_BOLD; // TODO: Unset if false
             obj->flags |= (TMX_FLAG_FONT_STYLE | TMX_FLAG_FONT_BOLD);
         }
-        else if (STREQL(name, WORD_ITALIC))
+        else if (STREQL(name, TMX_WORD_ITALIC))
         {
-            text->style |= TMX_FONT_STYLE_ITALIC;
+            text->style |= TMX_FONT_STYLE_ITALIC; // TODO: Unset if false
             obj->flags |= (TMX_FLAG_FONT_STYLE | TMX_FLAG_FONT_ITALIC);
         }
-        else if (STREQL(name, WORD_UNDERLINE))
+        else if (STREQL(name, TMX_WORD_UNDERLINE))
         {
-            text->style |= TMX_FONT_STYLE_UNDERLINE;
+            text->style |= TMX_FONT_STYLE_UNDERLINE; // TODO: Unset if false
             obj->flags |= (TMX_FLAG_FONT_STYLE | TMX_FLAG_FONT_UNDERLINE);
         }
-        else if (STREQL(name, WORD_STRIKEOUT))
+        else if (STREQL(name, TMX_WORD_STRIKEOUT))
         {
-            text->style |= TMX_FONT_STYLE_STRIKEOUT;
+            text->style |= TMX_FONT_STYLE_STRIKEOUT; // TODO: Unset if false
             obj->flags |= (TMX_FLAG_FONT_STYLE | TMX_FLAG_FONT_STRIKEOUT);
         }
-        else if (STREQL(name, WORD_KERNING))
+        else if (STREQL(name, TMX_WORD_KERNING))
         {
-            text->kerning = TMX_STR2BOOL(value);
+            text->kerning = tmxParseBool(value);
             obj->flags |= TMX_FLAG_FONT_KERNING;
         }
-        else if (STREQL(name, WORD_HALIGN))
+        else if (STREQL(name, TMX_WORD_HALIGN))
         {
             halign = tmxParseAlignH(value);
             obj->flags |= (TMX_FLAG_ALIGN | TMX_FLAG_HALIGN);
         }
-        else if (STREQL(name, WORD_VALIGN))
+        else if (STREQL(name, TMX_WORD_VALIGN))
         {
             valign = tmxParseAlignV(value);
             obj->flags |= (TMX_FLAG_ALIGN | TMX_FLAG_VALIGN);
         }
         else
         {
-            tmxXmlWarnAttribute(WORD_TEXT, name);
+            tmxXmlWarnAttribute(TMX_WORD_TEXT, name);
         }
     }
     text->align = (halign | valign);
@@ -319,57 +310,56 @@ tmxXmlParseObject(TMXcontext *context)
 
     while (tmxXmlReadAttr(context->xml, &name, &value))
     {
-        if (STREQL(name, WORD_ID))
-            object->id = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_NAME))
+        if (STREQL(name, TMX_WORD_ID))
+            object->id = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_NAME))
         {
             object->name = tmxStringDup(value);
             object->flags |= TMX_FLAG_NAME;
         }
-        else if (STREQL(name, WORD_TYPE))
+        else if (STREQL(name, TMX_WORD_TYPE))
             object->class = tmxStringDup(value);
-        else if (STREQL(name, WORD_X))
+        else if (STREQL(name, TMX_WORD_X))
         {
-            object->position.x = TMX_STR2FLT(value);
+            object->position.x = tmxParseFloat(value);
             object->flags |= (TMX_FLAG_POSITION | TMX_FLAG_X);
         }
-        else if (STREQL(name, WORD_Y))
+        else if (STREQL(name, TMX_WORD_Y))
         {
-            object->position.y = TMX_STR2FLT(value);
+            object->position.y = tmxParseFloat(value);
             object->flags |= (TMX_FLAG_POSITION | TMX_FLAG_Y);
         }
-        else if (STREQL(name, WORD_WIDTH))
+        else if (STREQL(name, TMX_WORD_WIDTH))
         {
-            object->size.x = TMX_STR2FLT(value);
+            object->size.x = tmxParseFloat(value);
             object->flags |= (TMX_FLAG_SIZE | TMX_FLAG_WIDTH);
         }
-        else if (STREQL(name, WORD_HEIGHT))
+        else if (STREQL(name, TMX_WORD_HEIGHT))
         {
-            object->size.y = TMX_STR2FLT(value);
+            object->size.y = tmxParseFloat(value);
             object->flags |= (TMX_FLAG_SIZE | TMX_FLAG_HEIGHT);
         }
-        else if (STREQL(name, WORD_ROTATION))
+        else if (STREQL(name, TMX_WORD_ROTATION))
         {
-            object->rotation = TMX_STR2FLT(value);
+            object->rotation = tmxParseFloat(value);
             object->flags |= TMX_FLAG_ROTATION;
         }
-        else if (STREQL(name, WORD_GID))
+        else if (STREQL(name, TMX_WORD_GID))
         {
-            char *end   = NULL;
-            object->gid = (TMXgid) strtoul(value, &end, 10);
+            object->gid = (TMXgid) tmxParseUint(value);
             object->flags |= TMX_FLAG_GID;
         }
-        else if (STREQL(name, WORD_VISIBLE))
+        else if (STREQL(name, TMX_WORD_VISIBLE))
         {
-            object->visible = TMX_STR2BOOL(value);
+            object->visible = tmxParseBool(value);
             object->flags |= TMX_FLAG_VISIBLE;
         }
-        else if (STREQL(name, WORD_TYPE) || STREQL(name, WORD_CLASS))
+        else if (STREQL(name, TMX_WORD_TYPE) || STREQL(name, TMX_WORD_CLASS))
         {
             object->flags |= TMX_FLAG_CLASS;
             object->class = tmxStringDup(value);
         }
-        else if (STREQL(name, WORD_TEMPLATE))
+        else if (STREQL(name, TMX_WORD_TEMPLATE))
         {
             char templatePath[TMX_MAX_PATH];
             tmxFileAbsolutePath(value, context->basePath, templatePath, TMX_MAX_PATH);
@@ -377,7 +367,7 @@ tmxXmlParseObject(TMXcontext *context)
         }
         else
         {
-            tmxXmlWarnAttribute(WORD_OBJECT, name);
+            tmxXmlWarnAttribute(TMX_WORD_OBJECT, name);
         }
     }
 
@@ -387,37 +377,37 @@ tmxXmlParseObject(TMXcontext *context)
 
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (STREQL(name, WORD_PROPERTIES))
+        if (STREQL(name, TMX_WORD_PROPERTIES))
         {
             object->properties = tmxXmlParseProperties(context);
             object->flags |= TMX_FLAG_PROPERTIES;
             continue;
         }
-        else if (STREQL(name, WORD_POINT))
+        else if (STREQL(name, TMX_WORD_POINT))
         {
             object->type = TMX_OBJECT_POINT;
         }
-        else if (STREQL(name, WORD_ELLIPSE))
+        else if (STREQL(name, TMX_WORD_ELLIPSE))
         {
             object->type = TMX_OBJECT_ELLIPSE;
         }
-        else if (STREQL(name, WORD_POLYGON) || STREQL(name, WORD_POLYLINE))
+        else if (STREQL(name, TMX_WORD_POLYGON) || STREQL(name, TMX_WORD_POLYLINE))
         {
-            object->type = STREQL(name, WORD_POLYGON) ? TMX_OBJECT_POLYGON : TMX_OBJECT_POLYLINE;
+            object->type = STREQL(name, TMX_WORD_POLYGON) ? TMX_OBJECT_POLYGON : TMX_OBJECT_POLYLINE;
             tmxXmlReadAttr(context->xml, &name, &value);
             tmxXmlMoveToContent(context->xml);
             // It is safe to stomp all over this pointer, it is temporary and no longer valid on the next loop
             tmxParsePoints((char *) value, &object->poly);
             object->flags |= TMX_FLAG_POINTS;
         }
-        else if (STREQL(name, WORD_TEXT))
+        else if (STREQL(name, TMX_WORD_TEXT))
         {
             object->type = TMX_OBJECT_TEXT;
             object->text = tmxXmlParseObjectText(context, object);
         }
         else
         {
-            tmxXmlWarnElement(WORD_OBJECT, name);
+            tmxXmlWarnElement(TMX_WORD_OBJECT, name);
             tmxXmlSkipElement(context->xml);
         }
     }
@@ -440,12 +430,11 @@ tmxXmlParseTileIds(TMXcontext *context, TMXenum encoding, TMXenum compression, T
         size_t i = 0;
         TMXgid gid;
         const char *value;
-        char *end = NULL;
 
         while (tmxXmlReadElement(context->xml, &str, &strSize))
         {
 
-            if (!STREQL(str, WORD_TILE))
+            if (!STREQL(str, TMX_WORD_TILE))
             {
                 tmxXmlWarnElement("data/chunk", str);
                 tmxXmlSkipElement(context->xml);
@@ -455,13 +444,13 @@ tmxXmlParseTileIds(TMXcontext *context, TMXenum encoding, TMXenum compression, T
             gid = 0;
             while (tmxXmlReadAttr(context->xml, &str, &value))
             {
-                if (STREQL(str, WORD_ID))
+                if (STREQL(str, TMX_WORD_ID))
                 {
-                    gid = strtoul(str, &end, 10);
+                    gid = tmxParseUint(str);
                 }
                 else
                 {
-                    tmxXmlWarnAttribute(WORD_TILE, str);
+                    tmxXmlWarnAttribute(TMX_WORD_TILE, str);
                 }
             }
             output[i++] = gid;
@@ -508,17 +497,17 @@ tmxXmlParseTileData(TMXcontext *context, TMXlayer *layer)
 
             while (tmxXmlReadAttr(context->xml, &name, &value))
             {
-                if (STREQL(name, WORD_X))
-                    chunk->bounds.x = TMX_STR2INT(value);
-                else if (STREQL(name, WORD_Y))
-                    chunk->bounds.y = TMX_STR2INT(value);
-                else if (STREQL(name, WORD_WIDTH))
-                    chunk->bounds.w = TMX_STR2INT(value);
-                else if (STREQL(name, WORD_HEIGHT))
-                    chunk->bounds.h = TMX_STR2INT(value);
+                if (STREQL(name, TMX_WORD_X))
+                    chunk->bounds.x = tmxParseInt(value);
+                else if (STREQL(name, TMX_WORD_Y))
+                    chunk->bounds.y = tmxParseInt(value);
+                else if (STREQL(name, TMX_WORD_WIDTH))
+                    chunk->bounds.w = tmxParseInt(value);
+                else if (STREQL(name, TMX_WORD_HEIGHT))
+                    chunk->bounds.h = tmxParseInt(value);
                 else
                 {
-                    tmxXmlWarnAttribute(WORD_CHUNK, name);
+                    tmxXmlWarnAttribute(TMX_WORD_CHUNK, name);
                 }
             }
 
@@ -555,32 +544,32 @@ tmxXmlParseLayer(TMXcontext *context, const char *layerType)
 
     while (tmxXmlReadAttr(context->xml, &name, &value))
     {
-        if (STREQL(name, WORD_ID))
-            layer->id = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_NAME))
+        if (STREQL(name, TMX_WORD_ID))
+            layer->id = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_NAME))
             layer->name = tmxStringDup(value);
-        else if (STREQL(name, WORD_CLASS))
+        else if (STREQL(name, TMX_WORD_CLASS))
             layer->class = tmxStringDup(value);
-        else if (STREQL(name, WORD_X))
-            layer->position.x = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_Y))
-            layer->position.y = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_WIDTH))
-            layer->size.w = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_HEIGHT))
-            layer->size.h = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_OPACITY))
-            layer->opacity = TMX_STR2FLT(value);
-        else if (STREQL(name, WORD_VISIBLE))
-            layer->visible = TMX_STR2BOOL(value);
+        else if (STREQL(name, TMX_WORD_X))
+            layer->position.x = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_Y))
+            layer->position.y = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_WIDTH))
+            layer->size.w = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_HEIGHT))
+            layer->size.h = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_OPACITY))
+            layer->opacity = tmxParseFloat(value);
+        else if (STREQL(name, TMX_WORD_VISIBLE))
+            layer->visible = tmxParseBool(value);
         else if (STREQL(name, WORD_OFFSET_X))
-            layer->offset.x = TMX_STR2INT(value);
+            layer->offset.x = tmxParseInt(value);
         else if (STREQL(name, WORD_OFFSET_Y))
-            layer->offset.y = TMX_STR2INT(value);
+            layer->offset.y = tmxParseInt(value);
         else if (STREQL(name, WORD_PARALLAX_X))
-            layer->parallax.x = TMX_STR2FLT(value);
+            layer->parallax.x = tmxParseFloat(value);
         else if (STREQL(name, WORD_PARALLAX_Y))
-            layer->parallax.y = TMX_STR2FLT(value);
+            layer->parallax.y = tmxParseFloat(value);
         else if (STREQL(name, WORD_TINT_COLOR))
         {
             layer->tint_color = tmxParseColor(value);
@@ -589,9 +578,9 @@ tmxXmlParseLayer(TMXcontext *context, const char *layerType)
         else if (STREQL(name, WORD_DRAW_ORDER)) // <objectgroup> only
             layer->draw_order = tmxParseDrawOrder(value);
         else if (STREQL(name, WORD_REPEAT_X)) // <imagelayer> only
-            layer->repeat.x = TMX_STR2BOOL(value);
+            layer->repeat.x = tmxParseBool(value);
         else if (STREQL(name, WORD_REPEAT_Y)) // <imagelayer> only
-            layer->repeat.y = TMX_STR2BOOL(value);
+            layer->repeat.y = tmxParseBool(value);
         else
         {
             tmxXmlWarnAttribute(layerType, name);
@@ -609,17 +598,17 @@ tmxXmlParseLayer(TMXcontext *context, const char *layerType)
 
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (STREQL(name, WORD_PROPERTIES))
+        if (STREQL(name, TMX_WORD_PROPERTIES))
         {
             layer->properties = tmxXmlParseProperties(context);
             layer->flags |= TMX_FLAG_PROPERTIES;
         }
-        else if (STREQL(name, WORD_DATA)) // <layer>
+        else if (STREQL(name, TMX_WORD_DATA)) // <layer>
         {
             tmxXmlMoveToContent(context->xml);
             tmxXmlParseTileData(context, layer);
         }
-        else if (STREQL(name, WORD_OBJECT)) // <objectgroup>
+        else if (STREQL(name, TMX_WORD_OBJECT)) // <objectgroup>
         {
             TMXobject *obj = tmxXmlParseObject(context);
             if (!obj)
@@ -632,12 +621,12 @@ tmxXmlParseLayer(TMXcontext *context, const char *layerType)
                 layer->data.objects = tmxMalloc(objectCapa * sizeof(TMXobject *));
             tmxArrayPush(TMXobject *, layer->data.objects, obj, layer->count, layerCapa);
         }
-        else if (STREQL(name, WORD_IMAGE)) // <imagelayer>
+        else if (STREQL(name, TMX_WORD_IMAGE)) // <imagelayer>
         {
             layer->data.image = tmxXmlParseImage(context);
         }
-        else if (STREQL(name, WORD_LAYER) || STREQL(name, WORD_OBJECT_GROUP) || STREQL(name, WORD_IMAGE_LAYER) ||
-                 STREQL(name, WORD_GROUP)) // <group>
+        else if (STREQL(name, TMX_WORD_LAYER) || STREQL(name, WORD_OBJECT_GROUP) || STREQL(name, WORD_IMAGE_LAYER) ||
+                 STREQL(name, TMX_WORD_GROUP)) // <group>
         {
             TMXlayer *child = tmxXmlParseLayer(context, name);
             if (!child)
@@ -668,7 +657,6 @@ tmxParseAnimation(TMXcontext *context, TMXanimation *animation)
     TMXframe *frame;
     const char *name;
     const char *value;
-    char *end = NULL;
     size_t size;
     size_t capacity   = 8;
     animation->frames = tmxMalloc(capacity * sizeof(TMXframe));
@@ -676,9 +664,9 @@ tmxParseAnimation(TMXcontext *context, TMXanimation *animation)
     tmxXmlMoveToContent(context->xml);
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (!STREQL(name, WORD_FRAME))
+        if (!STREQL(name, TMX_WORD_FRAME))
         {
-            tmxXmlWarnElement(WORD_MAP, name);
+            tmxXmlWarnElement(TMX_WORD_MAP, name);
             tmxXmlSkipElement(context->xml);
             continue;
         }
@@ -693,9 +681,9 @@ tmxParseAnimation(TMXcontext *context, TMXanimation *animation)
         while (tmxXmlReadAttr(context->xml, &name, &value))
         {
             if (STREQL(name, WORD_TILE_ID))
-                frame->id = (TMXtid) strtoul(value, &end, 10);
-            else if (STREQL(name, WORD_DURATION))
-                frame->duration = strtoul(value, &end, 10);
+                frame->id = (TMXtid) tmxParseUint(value);
+            else if (STREQL(name, TMX_WORD_DURATION))
+                frame->duration = tmxParseUint(value);
         }
         tmxXmlMoveToContent(context->xml);
     }
@@ -716,7 +704,7 @@ tmxParseCollision(TMXcontext *context, TMXcollision *collision)
     tmxXmlMoveToContent(context->xml);
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (!STREQL(name, WORD_OBJECT))
+        if (!STREQL(name, TMX_WORD_OBJECT))
         {
             tmxXmlWarnElement(WORD_OBJECT_GROUP, name);
             tmxXmlSkipElement(context->xml);
@@ -732,62 +720,37 @@ tmxParseCollision(TMXcontext *context, TMXcollision *collision)
 }
 
 static void
-tmxInitTilesetTiles(TMXtileset *tileset, TMXbool isCollection)
-{
-    if (!tileset->tile_count)
-        return;
-
-    int x, y;
-    tileset->tiles = tmxCalloc(tileset->tile_count, sizeof(TMXtile));
-
-    // A "classic" tileset based on a single image with uniform tiles
-    if (!isCollection)
-    {
-        size_t i;
-        for (i = 0; i < tileset->tile_count; i++)
-        {
-            x = (i % tileset->columns) * tileset->tile_size.w;
-            y = (i / tileset->columns) * tileset->tile_size.h;
-
-            tileset->tiles[i].id   = (TMXtid) i;
-            tileset->tiles[i].rect = (TMXrect){.x=x, .y=y, .w=tileset->tile_size.w, .h=tileset->tile_size.h};
-        }
-    }
-}
-
-static void
 tmxXmlParseTile(TMXcontext *context, TMXtile *tiles, TMXbool isCollection, size_t tileIndex)
 {
     const char *name;
     const char *value;
     size_t size;
-    char *end = NULL;
 
     TMXtile *tile = NULL;
 
     while (tmxXmlReadAttr(context->xml, &name, &value))
     {
-        if (STREQL(name, WORD_ID))
+        if (STREQL(name, TMX_WORD_ID))
         {
-            TMXtid id = (TMXtid) strtoul(value, &end, 10);
+            TMXtid id = (TMXtid) tmxParseUint(value);
             if (!isCollection)
                 tileIndex = id;
             tile     = &tiles[tileIndex];
             tile->id = id;
         }
-        else if (STREQL(name, WORD_TYPE))
+        else if (STREQL(name, TMX_WORD_TYPE))
             tile->class = tmxStringDup(value);
-        else if (STREQL(name, WORD_X))
-            tile->rect.x = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_Y))
-            tile->rect.y = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_WIDTH))
-            tile->rect.w = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_HEIGHT))
-            tile->rect.h = TMX_STR2INT(value);
+        else if (STREQL(name, TMX_WORD_X))
+            tile->rect.x = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_Y))
+            tile->rect.y = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_WIDTH))
+            tile->rect.w = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_HEIGHT))
+            tile->rect.h = tmxParseInt(value);
         else
         {
-            tmxXmlWarnAttribute(WORD_TILE, name);
+            tmxXmlWarnAttribute(TMX_WORD_TILE, name);
         }
     }
 
@@ -796,17 +759,17 @@ tmxXmlParseTile(TMXcontext *context, TMXtile *tiles, TMXbool isCollection, size_
 
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (STREQL(name, WORD_ANIMATION))
+        if (STREQL(name, TMX_WORD_ANIMATION))
             tmxParseAnimation(context, &tile->animation);
         else if (STREQL(name, WORD_OBJECT_GROUP))
             tmxParseCollision(context, &tile->collision);
-        else if (STREQL(name, WORD_IMAGE))
+        else if (STREQL(name, TMX_WORD_IMAGE))
             tile->image = tmxXmlParseImage(context);
-        else if (STREQL(name, WORD_PROPERTIES))
+        else if (STREQL(name, TMX_WORD_PROPERTIES))
             tile->properties = tmxXmlParseProperties(context);
         else
         {
-            tmxXmlWarnElement(WORD_TILE, name);
+            tmxXmlWarnElement(TMX_WORD_TILE, name);
             tmxXmlSkipElement(context->xml);
         }
     }
@@ -818,7 +781,6 @@ tmxXmlParseTileset(TMXcontext *context, TMXgid *firstGid)
     TMXtileset *tileset = NULL;
     const char *name;
     const char *value;
-    char *end = NULL;
     size_t size;
 
     // The XML spec for external/embedded tilesets combined with a forward-only parser makes this a bit wonky.
@@ -828,10 +790,10 @@ tmxXmlParseTileset(TMXcontext *context, TMXgid *firstGid)
         if (STREQL(name, WORD_FIRST_GID))
         {
             if (firstGid)
-                *firstGid = strtoul(value, &end, 10);
+                *firstGid = tmxParseUint(value);
             continue;
         }
-        else if (STREQL(name, WORD_SOURCE))
+        else if (STREQL(name, TMX_WORD_SOURCE))
         {
             char buffer[TMX_MAX_PATH];
             tmxFileAbsolutePath(value, context->basePath, buffer, TMX_MAX_PATH);
@@ -840,6 +802,8 @@ tmxXmlParseTileset(TMXcontext *context, TMXgid *firstGid)
                 return tileset;
 
             tileset = tmxLoadTileset(buffer, context->cache, TMX_FORMAT_AUTO);
+            if (tileset)
+                tileset->flags |= TMX_FLAG_EXTERNAL;
             return tileset;
         }
 
@@ -849,35 +813,40 @@ tmxXmlParseTileset(TMXcontext *context, TMXgid *firstGid)
         // The "firstgid" and "source" would be first/only attributes in an external tileset, so if neither are defined by
         // this point, then this is the actual tileset definition, and it needs allocated before reading anything more.
 
-        if (STREQL(name, WORD_NAME))
+        if (STREQL(name, TMX_WORD_NAME))
             tileset->name = tmxStringDup(value);
-        else if (STREQL(name, WORD_CLASS))
+        else if (STREQL(name, TMX_WORD_CLASS))
             tileset->class = tmxStringDup(value);
         else if (STREQL(name, WORD_TILE_WIDTH))
-            tileset->tile_size.w = TMX_STR2INT(value);
+            tileset->tile_size.w = tmxParseInt(value);
         else if (STREQL(name, WORD_TILE_HEIGHT))
-            tileset->tile_size.h = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_SPACING))
-            tileset->spacing = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_MARGIN))
-            tileset->margin = TMX_STR2INT(value);
+            tileset->tile_size.h = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_SPACING))
+            tileset->spacing = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_MARGIN))
+            tileset->margin = tmxParseInt(value);
         else if (STREQL(name, WORD_TILE_COUNT))
-            tileset->tile_count = strtoul(value, &end, 10);
-        else if (STREQL(name, WORD_COLUMNS))
-            tileset->columns = TMX_STR2INT(value);
+            tileset->tile_count = tmxParseUint(value);
+        else if (STREQL(name, TMX_WORD_COLUMNS))
+            tileset->columns = tmxParseInt(value);
         else if (STREQL(name, WORD_OBJECT_ALIGN))
             tileset->object_align = tmxParseObjectAlignment(value);
         else if (STREQL(name, WORD_TILE_RENDER_SIZE))
             tileset->render_size = tmxParseRenderSize(value);
         else if (STREQL(name, WORD_FILL_MODE))
             tileset->fill_mode = tmxParseFillMode(value);
-        else if (STREQL(name, WORD_VERSION))
+        else if (STREQL(name, TMX_WORD_VERSION))
             tileset->version = tmxStringDup(value);
         else if (STREQL(name, WORD_TILED_VERSION))
             tileset->tiled_version = tmxStringDup(value);
+        else if (STREQL(name, WORD_BACKGROUND_COLOR))
+        {
+            tileset->background_color = tmxParseColor(value);
+            tileset->flags |= TMX_FLAG_COLOR;
+        }
         else
         {
-            tmxXmlWarnAttribute(WORD_TILESET, name);
+            tmxXmlWarnAttribute(TMX_WORD_TILESET, name);
         }
     }
 
@@ -904,11 +873,11 @@ tmxXmlParseTileset(TMXcontext *context, TMXgid *firstGid)
 
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (STREQL(name, WORD_TILE))
+        if (STREQL(name, TMX_WORD_TILE))
             tmxXmlParseTile(context, tileset->tiles, isCollection, tileIndex++);
-        else if (STREQL(name, WORD_IMAGE))
+        else if (STREQL(name, TMX_WORD_IMAGE))
             tileset->image = tmxXmlParseImage(context);
-        else if (STREQL(name, WORD_PROPERTIES))
+        else if (STREQL(name, TMX_WORD_PROPERTIES))
         {
             tileset->properties = tmxXmlParseProperties(context);
             tileset->flags |= TMX_FLAG_PROPERTIES;
@@ -917,34 +886,34 @@ tmxXmlParseTileset(TMXcontext *context, TMXgid *firstGid)
         {
             while (tmxXmlReadAttr(context->xml, &name, &value))
             {
-                if (STREQL(name, WORD_X))
-                    tileset->offset.x = TMX_STR2INT(value);
-                else if (STREQL(name, WORD_Y))
-                    tileset->offset.y = TMX_STR2INT(value);
+                if (STREQL(name, TMX_WORD_X))
+                    tileset->offset.x = tmxParseInt(value);
+                else if (STREQL(name, TMX_WORD_Y))
+                    tileset->offset.y = tmxParseInt(value);
             }
             tmxXmlMoveToContent(context->xml);
         }
-        else if (STREQL(name, WORD_GRID))
+        else if (STREQL(name, TMX_WORD_GRID))
         {
             while (tmxXmlReadAttr(context->xml, &name, &value))
             {
-                if (STREQL(name, WORD_WIDTH))
-                    tileset->grid.size.w = TMX_STR2INT(value);
-                else if (STREQL(name, WORD_HEIGHT))
-                    tileset->grid.size.h = TMX_STR2INT(value);
-                if (STREQL(name, WORD_ORIENTATION))
+                if (STREQL(name, TMX_WORD_WIDTH))
+                    tileset->grid.size.w = tmxParseInt(value);
+                else if (STREQL(name, TMX_WORD_HEIGHT))
+                    tileset->grid.size.h = tmxParseInt(value);
+                if (STREQL(name, TMX_WORD_ORIENTATION))
                     tileset->grid.orientation = tmxParseOrientation(value);
             }
             tmxXmlMoveToContent(context->xml);
         }
-        else if (STREQL(name, "wangsets") || STREQL(name, "terraintypes") || STREQL(name, "transformations"))
+        else if (STREQL(name, TMX_WORD_WANGSETS) || STREQL(name, WORD_TERRAIN_TYPES) || STREQL(name, TMX_WORD_TRANSFORMATIONS))
         {
             // Skip the types that are only relevant to the editor, but don't warn (if configured)
             tmxXmlSkipElement(context->xml);
         }
         else
         {
-            tmxXmlWarnElement(WORD_TILESET, name);
+            tmxXmlWarnElement(TMX_WORD_TILESET, name);
             tmxXmlSkipElement(context->xml);
         }
     }
@@ -954,7 +923,7 @@ tmxXmlParseTileset(TMXcontext *context, TMXgid *firstGid)
 static TMXmap *
 tmxXmlParseMap(TMXcontext *context)
 {
-    if (!tmxXmlAssertElement(context->xml, WORD_MAP))
+    if (!tmxXmlAssertElement(context->xml, TMX_WORD_MAP))
         return NULL;
 
     TMXmap *map  = TMX_ALLOC(TMXmap);
@@ -971,36 +940,36 @@ tmxXmlParseMap(TMXcontext *context)
 
     while (tmxXmlReadAttr(context->xml, &name, &value))
     {
-        if (STREQL(name, WORD_VERSION))
+        if (STREQL(name, TMX_WORD_VERSION))
             map->version = tmxStringDup(value);
         else if (STREQL(name, WORD_TILED_VERSION))
             map->tiled_version = tmxStringDup(value);
-        else if (STREQL(name, WORD_CLASS))
+        else if (STREQL(name, TMX_WORD_CLASS))
             map->class = tmxStringDup(value);
-        else if (STREQL(name, WORD_ORIENTATION))
+        else if (STREQL(name, TMX_WORD_ORIENTATION))
             map->orientation = tmxParseOrientation(value);
         else if (STREQL(name, WORD_RENDER_ORDER))
             map->render_order = tmxParseRenderOrder(value);
-        else if (STREQL(name, WORD_WIDTH))
-            map->size.w = TMX_STR2INT(value);
-        else if (STREQL(name, WORD_HEIGHT))
-            map->size.h = TMX_STR2INT(value);
+        else if (STREQL(name, TMX_WORD_WIDTH))
+            map->size.w = tmxParseInt(value);
+        else if (STREQL(name, TMX_WORD_HEIGHT))
+            map->size.h = tmxParseInt(value);
         else if (STREQL(name, WORD_TILE_WIDTH))
-            map->tile_size.w = TMX_STR2INT(value);
+            map->tile_size.w = tmxParseInt(value);
         else if (STREQL(name, WORD_TILE_HEIGHT))
-            map->tile_size.h = TMX_STR2INT(value);
+            map->tile_size.h = tmxParseInt(value);
         else if (STREQL(name, WORD_HEX_SIDE_LENGTH))
-            map->hex_side = TMX_STR2INT(value);
+            map->hex_side = tmxParseInt(value);
         else if (STREQL(name, WORD_STAGGER_AXIS))
             map->stagger.axis = tmxParseStaggerAxis(value);
         else if (STREQL(name, WORD_STAGGER_INDEX))
             map->stagger.index = tmxParseStaggerIndex(value);
         else if (STREQL(name, WORD_PARALLAX_ORIGIN_X))
-            map->parallax_origin.x = TMX_STR2FLT(value);
+            map->parallax_origin.x = tmxParseFloat(value);
         else if (STREQL(name, WORD_PARALLAX_ORIGIN_Y))
-            map->parallax_origin.y = TMX_STR2FLT(value);
-        else if (STREQL(name, WORD_INFINITE))
-            map->infinite = TMX_STR2BOOL(value);
+            map->parallax_origin.y = tmxParseFloat(value);
+        else if (STREQL(name, TMX_WORD_INFINITE))
+            map->infinite = tmxParseBool(value);
         else if (STREQL(name, WORD_BACKGROUND_COLOR))
         {
             map->background_color = tmxParseColor(value);
@@ -1008,7 +977,7 @@ tmxXmlParseMap(TMXcontext *context)
         }
 #ifdef TMX_WARN_UNHANDLED
         else if (!STREQL(name, WORD_NEXT_LAYER_ID) && !STREQL(name, WORD_NEXT_OBJECT_ID) && !STREQL(name, WORD_COMPRESSION_LEVEL))
-            tmxXmlWarnAttribute(WORD_MAP, name);
+            tmxXmlWarnAttribute(TMX_WORD_MAP, name);
 #endif
     }
 
@@ -1017,24 +986,24 @@ tmxXmlParseMap(TMXcontext *context)
 
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (STREQL(name, WORD_PROPERTIES))
+        if (STREQL(name, TMX_WORD_PROPERTIES))
         {
             map->properties = tmxXmlParseProperties(context);
             map->flags |= TMX_FLAG_PROPERTIES;
         }
-        else if (STREQL(name, WORD_LAYER) || STREQL(name, WORD_OBJECT_GROUP) || STREQL(name, WORD_IMAGE_LAYER) || STREQL(name, WORD_GROUP))
+        else if (STREQL(name, TMX_WORD_LAYER) || STREQL(name, WORD_OBJECT_GROUP) || STREQL(name, WORD_IMAGE_LAYER) || STREQL(name, TMX_WORD_GROUP))
         {
             layer = tmxXmlParseLayer(context, name);
             tmxArrayPush(TMXlayer *, map->layers, layer, map->layer_count, layerCapa);
         }
-        else if (STREQL(name, WORD_TILESET))
+        else if (STREQL(name, TMX_WORD_TILESET))
         {
             mapTileset.tileset = tmxXmlParseTileset(context, &mapTileset.first_gid);
             tmxArrayPush(TMXmaptileset, map->tilesets, mapTileset, map->tileset_count, tilesetCapa);
         }
         else
         {
-            tmxXmlWarnElement(WORD_MAP, name);
+            tmxXmlWarnElement(TMX_WORD_MAP, name);
             tmxXmlSkipElement(context->xml);
         }
     }
@@ -1055,13 +1024,13 @@ tmxXmlParseTemplate(TMXcontext *context)
 
     while (tmxXmlReadElement(context->xml, &name, &size))
     {
-        if (STREQL(name, WORD_TILESET))
+        if (STREQL(name, TMX_WORD_TILESET))
             template->tileset = tmxXmlParseTileset(context, &template->first_gid);
-        else if (STREQL(name, WORD_OBJECT))
+        else if (STREQL(name, TMX_WORD_OBJECT))
             template->object = tmxXmlParseObject(context);
         else
         {
-            tmxXmlWarnElement(WORD_TEMPLATE, name);
+            tmxXmlWarnElement(TMX_WORD_TEMPLATE, name);
             tmxXmlSkipElement(context->xml);
         }
     }
@@ -1073,7 +1042,7 @@ tmxParseMapXml(TMXcontext *context)
 {
     TMXmap *map;
     context->xml = tmxXmlReaderInit(context->text);
-    tmxXmlMoveToElement(context->xml, WORD_MAP);
+    tmxXmlMoveToElement(context->xml, TMX_WORD_MAP);
     map = tmxXmlParseMap(context);
     tmxXmlReaderFree(context->xml);
     return map;
@@ -1084,7 +1053,7 @@ tmxParseTilesetXml(TMXcontext *context)
 {
     TMXtileset *tileset;
     context->xml = tmxXmlReaderInit(context->text);
-    tmxXmlMoveToElement(context->xml, WORD_TILESET);
+    tmxXmlMoveToElement(context->xml, TMX_WORD_TILESET);
     tileset = tmxXmlParseTileset(context, NULL);
     tmxXmlReaderFree(context->xml);
     return tileset;
@@ -1095,7 +1064,7 @@ tmxParseTemplateXml(TMXcontext *context)
 {
     TMXtemplate *template;
     context->xml = tmxXmlReaderInit(context->text);
-    tmxXmlMoveToElement(context->xml, WORD_TEMPLATE);
+    tmxXmlMoveToElement(context->xml, TMX_WORD_TEMPLATE);
     template = tmxXmlParseTemplate(context);
     tmxXmlReaderFree(context->xml);
     return template;

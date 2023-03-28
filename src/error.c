@@ -1,10 +1,10 @@
-#include "tmx/error.h"
-#include <stddef.h>
-#include <stdio.h>
+#include "internal.h"
+#include <stdio.h> // Remove
+#include <stdarg.h>
 
 static TMXenum lastError;
 static TMXerrorfunc errorCallback;
-static TMXuserptr userPtrValue;
+static TMXuserptr userPtrValue; 
 
 void
 tmxErrorCallback(TMXerrorfunc callback, TMXuserptr user)
@@ -30,7 +30,7 @@ tmxErrorMessage(TMXenum errno, const char *message)
     if (errorCallback)
         errorCallback(errno, message, userPtrValue);
     else
-        fprintf(stderr, "%s\n", message);
+        fprintf(stderr, "%s\n", message); // TODO: Remove
 }
 
 void

@@ -1,7 +1,7 @@
 #include "tmx/compression.h"
 #include "internal.h"
-#include "tmx/error.h"
 #include "tmx/memory.h"
+#include "parse.h"
 #include <string.h>
 
 #define MINIZ_NO_MALLOC
@@ -236,12 +236,11 @@ tmxCsvDecode(const char *input, size_t inputSize, TMXgid *output, size_t outputC
 
     size_t i  = 0;
     char *p   = tmxStringCopy(input, inputSize);
-    char *end = NULL;
 
     char *token = strtok(p, delim);
     while (token && i < outputCount)
     {
-        output[i++] = strtoul(token, &end, 10);
+        output[i++] = tmxParseUint(token);
         token       = strtok(NULL, delim);
     }
 

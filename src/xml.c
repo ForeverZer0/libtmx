@@ -1,5 +1,5 @@
 #include "tmx/xml.h"
-#include "tmx/error.h"
+#include "internal.h"
 #include "tmx/memory.h"
 #include "yxml.h"
 #include <ctype.h>
@@ -239,16 +239,15 @@ tmxXmlSkipElement(TMXxmlreader *xml)
     do
     {
         if (xml->token == YXML_ELEMSTART)
-            level++; 
+            level++;
         else if (xml->token == YXML_ELEMEND)
         {
             level--;
             if (level <= 0)
                 break;
-        }   
+        }
 
     } while (tmxXmlNextToken(xml));
-    
 
     // while (tmxXmlReadElement(xml, &dummy_name, &dummy_size))
     // {

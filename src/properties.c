@@ -1,7 +1,4 @@
-#include "tmx/properties.h"
 #include "internal.h"
-#include "tmx/types.h"
-#include "tmx/xml.h"
 
 TMXbool
 tmxTryGetProperty(const TMXproperties *properties, const char *name, TMXproperty **property)
@@ -50,9 +47,9 @@ tmxPropertyDup(TMXproperties *src)
     TMXproperties *dst = tmxCalloc(1, sizeof(TMXproperties));
     size_t keyLen      = strlen(src->key);
 
-    dst->value.name        = tmxStringCopy(src->value.name, keyLen);
-    dst->value.custom_type = tmxStringDup(src->value.custom_type);
-    dst->value.type        = src->value.type;
+    dst->value.name  = tmxStringCopy(src->value.name, keyLen);
+    dst->value.class = tmxStringDup(src->value.class);
+    dst->value.type  = src->value.type;
 
     switch (src->value.type)
     {
@@ -101,7 +98,7 @@ tmxPropertiesMerge(TMXproperties *dst, TMXproperties *src)
         return tmxPropertiesDup(src);
 
     // Enumerate through source properties
-    TMXproperties *srcProp, *tmpProp,  *dstProp;
+    TMXproperties *srcProp, *tmpProp, *dstProp;
     HASH_ITER(hh, src, srcProp, tmpProp)
     {
         // Skip if this key already exists within the destination hash

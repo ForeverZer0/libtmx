@@ -11,6 +11,7 @@ set(TMX_SOURCES
     src/common.c
     src/compression.c
     src/cwalk.c
+    src/file.c
     src/error.c
     src/parse.c
     src/parse.h

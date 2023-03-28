@@ -1,8 +1,6 @@
 #include "internal.h"
 #include "tmx/cache.h"
-#include "tmx/properties.h"
 #include "tmx/compression.h"
-#include "tmx/error.h"
 #include "tmx/memory.h"
 #include "tmx/types.h"
 #include "tmx/xml.h"
@@ -21,6 +19,21 @@ tmxImageCallback(TMXimageloadfunc loadFunc, TMXimagefreefunc freeFunc, TMXuserpt
     imageLoad    = loadFunc;
     imageFree    = freeFunc;
     imageUserPtr = user;
+}
+
+void
+tmxImageUserLoad(TMXimage *image, const char *basePath)
+{
+    if (!imageLoad)
+        return;
+    image->user_data = imageLoad(image, basePath, imageUserPtr);
+}
+
+void
+tmxImageUserFree(TMXimage *image)
+{
+    if (imageFree)
+        imageFree(image->user_data, imageUserPtr);
 }
 
 #pragma endregion
@@ -217,45 +230,6 @@ tmxFreeCache(TMXcache *cache)
 
 #pragma endregion
 
-TMX_COLOR_T
-tmxParseColor(const char *str)
-{
-    // clang-format off
-    // Early out to zero color if string is empty.
-    TMX_COLOR_T color = {0};
-    if (!str)
-        return color;
-
-    // Skip the prefix
-    if (*str == '#') { str++; }
-
-    // Calculate the value as an unsigned integer, accounting for different formats/lengths
-	size_t len = strlen(str);
-	uint32_t u32 = (uint32_t) strtoul(str, NULL, 16);
-	if (len < 6) {
-		u32 = (u32 & 0xF000u) << 16 | (u32 & 0xF000u) << 12
-		    | (u32 & 0x0F00u) << 12 | (u32 & 0x0F00u) <<  8
-		    | (u32 & 0x00F0u) <<  8 | (u32 & 0x00F0u) <<  4
-		    | (u32 & 0x000Fu) <<  4 | (u32 & 0x000Fu);     
-	}
-	if (len == 6 || len == 3)
-        u32 |= 0xFF000000u;
-
-    // If using packed colors, just assign the value, else normalize it.
-    #ifdef TMX_VECTOR_COLOR
-    color.a = (unsigned char) ((u32 >> 24) & 0xFF);
-    color.r = (unsigned char) ((u32 >> 16) & 0xFF);
-    color.g = (unsigned char) ((u32 >>  8) & 0xFF);
-    color.b = (unsigned char) ((u32 >>  0) & 0xFF);
-    #else
-    color.value = u32;
-    #endif
-
-    // clang-format on
-
-    return color;
-}
-
 TMX_INLINE char *
 tmxStringCopy(const char *input, size_t inputSize)
 {
@@ -269,44 +243,14 @@ tmxStringCopy(const char *input, size_t inputSize)
     return result;
 }
 
-TMX_INLINE TMXbool
-tmxStringBool(const char *str)
-{
-    if (str[0] == '0')
-        return TMX_FALSE;
-    if (str[0] == '1')
-        return TMX_TRUE;
-    if (STREQL(str, "true"))
-        return TMX_TRUE;
-    if (STREQL(str, "false"))
-        return TMX_FALSE;
-
-    return TMX_FALSE;
-}
-
-void
-tmxImageUserLoad(TMXimage *image, const char *basePath)
-{
-    if (!imageLoad)
-        return;
-    imageLoad(image, basePath, imageUserPtr);
-}
-
-void
-tmxImageUserFree(TMXimage *image)
-{
-    if (imageFree)
-        imageFree(image->user_data, imageUserPtr);
-}
-
-
-
 static TMX_INLINE TMXtile *tmxGetTile(TMXmap *map, TMXgid gid)
 {
     TMXgid clean = gid & TMX_GID_MASK;
     for (size_t i = 0; i < map->tileset_count; i++)
     {
-        if (clean >= map->tilesets[i].first_gid);
+        // TODO: Tilesets are ordered by first GID, but maybe still check range Just-In-Case™ 
+        // What if someone sorts the list to suit their own needs?
+        if (clean >= map->tilesets[i].first_gid)
             return &map->tilesets[i].tileset->tiles[clean - map->tilesets[i].first_gid];
     }
     return NULL;
@@ -335,7 +279,10 @@ tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfun
                 gid = layer->data.tiles[i];
                 tile = tmxGetTile(map, gid);
                 if (tile || includeEmpty)
-                    foreachFunc(map, layer, tile, i % width, i / width, gid & ~TMX_GID_MASK);
+                {
+                    if (!foreachFunc(map, layer, tile, i % width, i / width, gid & ~TMX_GID_MASK))
+                        break;
+                }
             }
             break;
         case TMX_RENDER_RIGHT_UP: 
@@ -344,7 +291,10 @@ tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfun
                 gid = layer->data.tiles[i];
                 tile = tmxGetTile(map, gid);
                 if (tile || includeEmpty)
-                    foreachFunc(map, layer, tile, i % width, height - (i / width), gid & ~TMX_GID_MASK);
+                {
+                    if (!foreachFunc(map, layer, tile, i % width, height - (i / width), gid & ~TMX_GID_MASK))
+                        break;
+                }
             }
             break;
         case TMX_RENDER_LEFT_DOWN:
@@ -353,7 +303,10 @@ tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfun
                 gid = layer->data.tiles[i];
                 tile = tmxGetTile(map, gid);
                 if (tile || includeEmpty)
-                    foreachFunc(map, layer, tile, width - (i % width), i / width, gid & ~TMX_GID_MASK);
+                {
+                    if (!foreachFunc(map, layer, tile, width - (i % width), i / width, gid & ~TMX_GID_MASK))
+                        break;
+                }
             }
             break;
         case TMX_RENDER_LEFT_UP: 
@@ -362,7 +315,10 @@ tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfun
                 gid = layer->data.tiles[i];
                 tile = tmxGetTile(map, gid);
                 if (tile || includeEmpty)
-                    foreachFunc(map, layer, tile, width - (i % width), height - (i / width), gid & ~TMX_GID_MASK);
+                {
+                    if (!foreachFunc(map, layer, tile, width - (i % width), height - (i / width), gid & ~TMX_GID_MASK))
+                        break;
+                }
             }
             break;
         default: tmxError(TMX_ERR_PARAM); break;
@@ -378,9 +334,6 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
     // value from its template. This is not ideal.
 
     dst->type = src->type;
-
-    if (dst->type == TMX_OBJECT_TEXT && !dst->text)
-        dst->text = TMX_ALLOC(struct TMXtext);
 
     if (!TMX_FLAG(dst->flags, TMX_FLAG_NAME) && src->name)
         dst->name = tmxStringDup(src->name);
@@ -400,6 +353,9 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
     // Text-specific fields
     if (dst->type == TMX_OBJECT_TEXT)
     {
+        if (!dst->text)
+            dst->text = TMX_ALLOC(struct TMXtext);
+
         if (!dst->text->string && !TMX_FLAG(dst->flags, TMX_FLAG_TEXT) && src->text->string)
             dst->text->string = tmxStringDup(src->text->string);
         if (!dst->text->font && !TMX_FLAG(dst->flags, TMX_FLAG_FONT) && src->text->font)

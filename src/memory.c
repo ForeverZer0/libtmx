@@ -1,98 +1,111 @@
-#include "cwalk.h"
 #include "tmx/memory.h"
 #include "internal.h"
-#include "tmx/error.h"
-#include <ctype.h>
-#include <stdlib.h>
 
 #ifdef TMX_DEBUG
 static size_t allocationCount;
 static size_t deallocationCount;
 #endif
 
-#pragma region Default Allocators
+#if !defined(TMX_REALLOC)
 
+#if defined(TMX_MALLOC) || defined(TMX_FREE) || defined(TMX_CALLOC)
+#error TMX_REALLOC must be defined in order to define any of TMX_MALLOC, TMX_CALLOC, or TMX_FREE
+#endif
+
+#include <stdlib.h>
+#define TMX_MALLOC(ptr, user)                 malloc(ptr)
+#define TMX_REALLOC(previous, newSize, user)  realloc(previous, newSize)
+#define TMX_CALLOC(elemCount, elemSize, user) calloc(elemCount, elemSize)
+#define TMX_FREE(ptr, user)                   free(ptr)
+
+#else
+
+#if !defined(TMX_FREE)
+#define TMX_FREE(ptr, user) TMX_UNUSED(TMX_REALLOC(ptr, 0, user))
+#endif
+
+#if !defined(TMX_MALLOC)
+#define TMX_MALLOC(size, user) TMX_REALLOC(NULL, size, user)
+#endif
+
+#if !defined(TMX_CALLOC)
 static void *
-tmxMallocImpl(size_t size, TMXuserptr user)
+TMC_CALLOC(size_t elemCount, size_t elemSize, TMXuserptr user)
 {
-    TMX_UNUSED(user);
-    return malloc(size);
+    size_t size  = elemCount * elemSize;
+    void *memory = TMX_REALLOC(NULL, size, user);
+    if (!memory)
+        return NULL;
+    memset(memory, 0, size);
+    return memory;
+}
+#endif
+#endif
+
+static TMXuserptr memoryUserPtr;
+
+void
+tmxMemoryUserPtr(TMXuserptr user)
+{
+    memoryUserPtr = user;
 }
 
-static void *
-tmxReallocImpl(void *previous, size_t newSize, TMXuserptr user)
-{
-    TMX_UNUSED(user);
-    return realloc(previous, newSize);
-}
-
-static void *
-tmxCallocImpl(size_t elemCount, size_t elemSize, TMXuserptr user)
-{
-    TMX_UNUSED(user);
-    return calloc(elemCount, elemSize);
-}
-
-static void
-tmxFreeImpl(void *memory, TMXuserptr user)
-{
-    TMX_UNUSED(user);
-    free(memory);
-}
-
-#pragma endregion /* Default Allocators */
-
-static TMXallocator memoryPool = {tmxMallocImpl, tmxReallocImpl, tmxCallocImpl, tmxFreeImpl};
-static TMXuserptr userPtrValue;
-
-#ifndef TMX_LOG_ALLOCATIONS
-
-TMX_INLINE void *
+void *
 tmxMalloc(size_t size)
 {
     if (!size)
         return NULL;
-#ifdef TMX_DEBUG
-    allocationCount++;
-#endif
-    void *ptr = memoryPool.malloc(size, userPtrValue);
+
+    void *ptr = TMX_MALLOC(size, memoryUserPtr);
     if (!ptr)
         tmxError(TMX_ERR_MEMORY);
+
+#ifdef TMX_DEBUG
+    if (ptr)
+        allocationCount++;
+#endif
     return ptr;
 }
 
-TMX_INLINE void *
+void *
 tmxRealloc(void *previous, size_t newSize)
 {
-#ifdef TMX_DEBUG
-    if (!previous)
-        allocationCount++;
-    else if (!newSize)
-        deallocationCount++;
-#endif
+    if (!previous && !newSize)
+        return NULL;
 
-    void *ptr = memoryPool.realloc(previous, newSize, userPtrValue);
+    void *ptr = TMX_REALLOC(previous, newSize, memoryUserPtr);
     if (!ptr && newSize)
         tmxError(TMX_ERR_MEMORY);
+
+#ifdef TMX_DEBUG
+    if (previous && newSize == 0)
+        deallocationCount++;
+    if (!previous && newSize > 0 && ptr)
+        allocationCount++;
+#endif
+
     return ptr;
 }
 
-TMX_INLINE void *
+void *
 tmxCalloc(size_t elemCount, size_t elemSize)
 {
     if (!elemCount || !elemSize)
         return NULL;
 
+    void *ptr = TMX_CALLOC(elemCount, elemSize, memoryUserPtr);
+    if (!ptr)
+    {
+        tmxError(TMX_ERR_MEMORY);
+        return NULL;
+    }
 #ifdef TMX_DEBUG
     allocationCount++;
 #endif
-    void *ptr = memoryPool.calloc(elemCount, elemSize, userPtrValue);
-    if (!ptr)
-        tmxError(TMX_ERR_MEMORY);
     return ptr;
 }
 
-TMX_INLINE void
+void
 tmxFree(void *memory)
 {
     if (!memory)
@@ -100,59 +113,8 @@ tmxFree(void *memory)
 #ifdef TMX_DEBUG
     deallocationCount++;
 #endif
-    memoryPool.free(memory, userPtrValue);
+    TMX_FREE(memory, memoryUserPtr);
 }
-
-#else
-
-#include <stdio.h>
-
-void *
-tmxMallocLogged(size_t size, const char *file, int line)
-{
-    if (!size)
-        return NULL;
-    void *mem = malloc(size);
-    printf("ALLOCATE: %p - %s - %d\n", mem, file, line);
-    return mem;
-}
-
-void *
-tmxReallocLogged(void *previous, size_t size, const char *file, int line)
-{
-    const char *word = NULL;
-    if (previous == NULL)
-        word = "ALLOCATE";
-    else if (size == 0)
-        word = "DEALLOCATE";
-
-    void *mem = realloc(previous, size);
-
-    if (word)
-        printf("%s: %p - %s - %d", word, mem, file, line);
-
-    return mem;
-}
-
-void *
-tmxCallocLogged(size_t count, size_t size, const char *file, int line)
-{
-    void *mem = calloc(count, size);
-    printf("ALLOCATE: %p - %s - %d\n", mem, file, line);
-    return mem;
-}
-
-void
-tmxFreeLogged(void *ptr, const char *file, int line)
-{
-    if (!ptr)
-        return;
-
-    printf("DEALLOCATE: %p - %s - %d\n", ptr, file, line);
-    free(ptr);
-}
-
-#endif
 
 static void
 tmxFreeProperties(TMXproperties *properties)
@@ -173,7 +135,7 @@ tmxFreeProperties(TMXproperties *properties)
         }
         // The key is the same pointer as the property name, so no need to free it, but it must be freed after
         tmxFree((void *) entry->value.name);
-        tmxFree((void *) entry->value.custom_type);
+        tmxFree((void *) entry->value.class);
         tmxFree(entry);
     }
 }
@@ -387,103 +349,3 @@ tmxMemoryLeakCheck(void)
     printf(YELLOW " -> " RESET "Result:          " BRIGHT "%s\n\n" RESET, allocationCount == deallocationCount ? GREEN "PASS" : RED "FAIL");
 }
 #endif
-
-
-static TMXreadfunc fileRead;
-static TMXfreefunc fileFree;
-static TMXuserptr fileUserPtr;
-
-size_t tmxFileAbsolutePath(const char *path, const char *basePath, char *buffer, size_t bufferSize)
-{   
-    size_t dirLen;;
-    cwk_path_get_dirname(basePath, &dirLen);
-
-    char dirBuffer[dirLen + 1];
-    memcpy(dirBuffer, basePath, dirLen);
-    dirBuffer[dirLen] = '\0';
-
-    return cwk_path_get_absolute(dirBuffer, path, buffer, bufferSize);
-}
-
-
-size_t tmxFileDirectory(const char *path)
-{
-    const char *fs = strrchr(path, '/');
-    const char *bs = strrchr(path, '\\');
-
-    const char *last = TMX_MAX(fs, bs);
-    if (!last)
-        return 0;
-
-    return (size_t)((last + 1) - path);
-}
-
-static char *tmxFileReadImpl(const char *path, const char *basePath)
-{
-    char *result = NULL;
-    size_t len;
-
-    FILE *fp = NULL;
-    fp = fopen(path, "r");
-
-    if (!fp && basePath)
-    {
-        char buffer[TMX_MAX_PATH];
-        len = tmxFileAbsolutePath(path, basePath, buffer, TMX_MAX_PATH);
-        if (!len)
-            return NULL;
-
-        fp = fopen(buffer, "r");
-    }
-
-    if (!fp)
-        return NULL;
-
-    fseek(fp, 0, SEEK_END);
-    len = (size_t) ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    if (len)
-    {
-        result = tmxMalloc(len + 1);
-        if (fread(result, 1, len, fp) != len)
-        {
-            tmxErrorFormat(TMX_ERR_IO, "Failed to read from \"%s\".", path);
-            tmxFree(result);
-            result = NULL;
-        }
-        else
-        {
-            result[len] = '\0';
-        }
-    }
-
-    fclose(fp);
-    return result;
-}
-
-char *tmxFileRead(const char *path, const char *basePath)
-{
-    if (!path)
-        return NULL;
-
-    if (fileRead)
-    {
-        char *result = NULL;
-        size_t len;
-
-        const char *userBuffer = fileRead(path, basePath, fileUserPtr);
-        if (userBuffer)
-        {
-            len = strlen(userBuffer);
-            result = tmxMalloc(len + 1);
-            memcpy(result, userBuffer, len);
-            result[len] = '\0';
-            if (fileFree)
-                fileFree((void*)userBuffer, fileUserPtr);
-            return result;
-        }
-    }
-
-    return tmxFileReadImpl(path, basePath);
-}

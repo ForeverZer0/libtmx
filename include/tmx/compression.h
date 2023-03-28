@@ -1,7 +1,7 @@
 #ifndef TMX_COMPRESSION_H
 #define TMX_COMPRESSION_H
 
-#include "types.h"
+#include "tmx.h"
 
 /**
  * @brief Tests whether the specified @a input is a valid Base64 string.
