@@ -81,7 +81,7 @@ tmxCacheTryGet(TMXcache *cache, const char *key, void **result, TMX_CACHE_TARGET
         return TMX_FALSE;
 
     size_t len = strlen(key);
-    if (!len || !TMX_FLAG(cache->flags, target))
+    if (!len || !TMX_HAS_FLAG(cache->flags, target))
         return TMX_FALSE;
 
     struct TMXentry **head, *entry = NULL;
@@ -108,7 +108,7 @@ tmxCacheTryGet(TMXcache *cache, const char *key, void **result, TMX_CACHE_TARGET
 TMX_BOOL
 tmxCacheAdd(TMXcache *cache, const char *key, void *value, TMX_CACHE_TARGET target)
 {
-    if (!cache || !key || !value || target == TMX_CACHE_NONE || !TMX_FLAG(cache->flags, target))
+    if (!cache || !key || !value || target == TMX_CACHE_NONE || !TMX_HAS_FLAG(cache->flags, target))
         return TMX_FALSE;
 
     size_t len = strlen(key);
@@ -146,7 +146,7 @@ tmxCacheRemove(TMXcache *cache, const char *key, TMX_CACHE_TARGET target)
         return TMX_FALSE;
 
     size_t len = strlen(key);
-    if (!len || !TMX_FLAG(cache->flags, target))
+    if (!len || !TMX_HAS_FLAG(cache->flags, target))
         return TMX_FALSE;
 
     struct TMXentry **head, *entry = NULL;
@@ -185,7 +185,7 @@ tmxCacheClear(TMXcache *cache, TMX_CACHE_TARGET targets)
     size_t count = 0;
     struct TMXentry *entry, *temp;
 
-    if (cache->tilesets && TMX_FLAG(targets, TMX_CACHE_TILESET))
+    if (cache->tilesets && TMX_HAS_FLAG(targets, TMX_CACHE_TILESET))
     {
         TMXtileset *tileset;
         HASH_ITER(hh, cache->tilesets, entry, temp)
@@ -199,7 +199,7 @@ tmxCacheClear(TMXcache *cache, TMX_CACHE_TARGET targets)
         }
     }
 
-    if (cache->templates && TMX_FLAG(targets, TMX_CACHE_TEMPLATE))
+    if (cache->templates && TMX_HAS_FLAG(targets, TMX_CACHE_TEMPLATE))
     {
         TMXtemplate *template;
         HASH_ITER(hh, cache->templates, entry, temp)
@@ -224,10 +224,10 @@ tmxCacheCount(TMXcache *cache, TMX_CACHE_TARGET targets)
 
     size_t count = 0;
 
-    if (cache->tilesets && TMX_FLAG(targets, TMX_CACHE_TILESET))
+    if (cache->tilesets && TMX_HAS_FLAG(targets, TMX_CACHE_TILESET))
         count += HASH_COUNT(cache->tilesets);
 
-    if (cache->templates && TMX_FLAG(targets, TMX_CACHE_TEMPLATE))
+    if (cache->templates && TMX_HAS_FLAG(targets, TMX_CACHE_TEMPLATE))
         count += HASH_COUNT(cache->templates);
 
     return count;
@@ -358,25 +358,25 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
 
     dst->type = src->type;
 
-    if (!TMX_FLAG(dst->flags, TMX_FLAG_NAME) && src->name)
+    if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_NAME) && src->name)
         dst->name = tmxStringDup(src->name);
 
-    if (!TMX_FLAG(dst->flags, TMX_FLAG_CLASS) && src->class)
+    if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_CLASS) && src->class)
         dst->class = tmxStringDup(src->class);
 
-    if (!TMX_FLAG(dst->flags, TMX_FLAG_GID))
+    if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_GID))
         dst->gid = src->gid;
 
-    if (!TMX_FLAG(dst->flags, TMX_FLAG_POSITION))
+    if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_POSITION))
         dst->position = src->position;
 
-    if (!TMX_FLAG(dst->flags, TMX_FLAG_SIZE))
+    if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_SIZE))
         dst->size = src->size;
 
-    if (!TMX_FLAG(dst->flags, TMX_FLAG_ROTATION))
+    if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_ROTATION))
         dst->rotation = src->rotation;
 
-    if (!TMX_FLAG(dst->flags, TMX_FLAG_VISIBLE))
+    if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_VISIBLE))
         dst->visible = src->visible;
 
     // Text-specific fields
@@ -385,37 +385,37 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
         if (!dst->text)
             dst->text = TMX_ALLOC(struct TMXtext);
 
-        if (!dst->text->string && !TMX_FLAG(dst->flags, TMX_FLAG_TEXT) && src->text->string)
+        if (!dst->text->string && !TMX_HAS_FLAG(dst->flags, TMX_FLAG_TEXT) && src->text->string)
             dst->text->string = tmxStringDup(src->text->string);
 
-        if (!dst->text->font && !TMX_FLAG(dst->flags, TMX_FLAG_FONT) && src->text->font)
+        if (!dst->text->font && !TMX_HAS_FLAG(dst->flags, TMX_FLAG_FONT) && src->text->font)
             dst->text->font = tmxStringDup(src->text->font);
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_BOLD) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_BOLD))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_FONT_BOLD) && TMX_HAS_FLAG(src->text->style, TMX_FONT_STYLE_BOLD))
             dst->text->style |= TMX_FONT_STYLE_BOLD;
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_ITALIC) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_ITALIC))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_FONT_ITALIC) && TMX_HAS_FLAG(src->text->style, TMX_FONT_STYLE_ITALIC))
             dst->text->style |= TMX_FONT_STYLE_ITALIC;
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_UNDERLINE) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_UNDERLINE))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_FONT_UNDERLINE) && TMX_HAS_FLAG(src->text->style, TMX_FONT_STYLE_UNDERLINE))
             dst->text->style |= TMX_FONT_STYLE_UNDERLINE;
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_STRIKEOUT) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_STRIKEOUT))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_FONT_STRIKEOUT) && TMX_HAS_FLAG(src->text->style, TMX_FONT_STYLE_STRIKEOUT))
             dst->text->style |= TMX_FONT_STYLE_STRIKEOUT;
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_HALIGN) && TMX_FLAG(src->flags, TMX_FLAG_HALIGN))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_HALIGN) && TMX_HAS_FLAG(src->flags, TMX_FLAG_HALIGN))
             dst->text->align |= (src->text->align & ~TMX_ALIGN_CENTER_V);
         
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_VALIGN) && TMX_FLAG(src->flags, TMX_FLAG_VALIGN))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_VALIGN) && TMX_HAS_FLAG(src->flags, TMX_FLAG_VALIGN))
             dst->text->align |= (src->text->align & ~TMX_ALIGN_CENTER_H);
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_SIZE))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_FONT_SIZE))
             dst->text->pixel_size = src->text->pixel_size;
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_KERNING))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_FONT_KERNING))
             dst->text->kerning = src->text->kerning;
 
-        if (!TMX_FLAG(dst->flags, TMX_FLAG_WORD_WRAP))
+        if (!TMX_HAS_FLAG(dst->flags, TMX_FLAG_WORD_WRAP))
             dst->text->wrap = src->text->wrap;
     }
 

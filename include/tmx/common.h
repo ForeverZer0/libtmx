@@ -1,3 +1,13 @@
+/**
+ * @file common.h
+ * @author Eric Freed
+ * @brief Provides a couple utilities and API macro defines shared by all headers.
+ * @version 0.1
+ * @date 2023-03-28
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
 #ifndef TMX_COMMON_H
 #define TMX_COMMON_H
 
@@ -53,10 +63,10 @@
  * @param flag The flag to test the presence of.
  * @return A boolean result.
  */
-#define TMX_FLAG(value, flag) (((value) & (flag)) != 0)
+#define TMX_HAS_FLAG(value, flag) (((value) & (flag)) != 0)
 
 /**
- * @brief Shut up, compiler.
+ * @brief Shut up compiler.
  */
 #define TMX_UNUSED(x) ((void) x)
 

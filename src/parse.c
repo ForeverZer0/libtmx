@@ -471,7 +471,7 @@ tmxParseTilesetImpl(const char *text, const char *filename, TMXcache *cache, TMX
         if (cache && filename)
             tmxCacheAddTileset(cache, filename, tileset);
 
-        if (!TMX_FLAG(tileset->flags, TMX_FLAG_EXTERNAL))
+        if (!TMX_HAS_FLAG(tileset->flags, TMX_FLAG_EXTERNAL))
             tileset->flags |= TMX_FLAG_EMBEDDED;
     }
 

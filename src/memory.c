@@ -163,7 +163,7 @@ tmxFreeObject(TMXobject *object)
     tmxFree((void *) object->class);
     tmxFreeProperties(object->properties);
 
-    if (object->template && !TMX_FLAG(object->template->flags, TMX_FLAG_CACHED))
+    if (object->template && !TMX_HAS_FLAG(object->template->flags, TMX_FLAG_CACHED))
         tmxFreeTemplate(object->template);
 
     switch (object->type)
@@ -249,7 +249,7 @@ tmxFreeMap(TMXmap *map)
 
     for (i = 0; i < map->tileset_count; i++)
     {
-        if (!map->tilesets[i].tileset || TMX_FLAG(map->tilesets[i].tileset->flags, TMX_FLAG_CACHED))
+        if (!map->tilesets[i].tileset || TMX_HAS_FLAG(map->tilesets[i].tileset->flags, TMX_FLAG_CACHED))
             continue;
         tmxFreeTileset(map->tilesets[i].tileset);
     }
@@ -265,7 +265,7 @@ tmxFreeTileset(TMXtileset *tileset)
     if (!tileset)
         return;
 
-    if (TMX_FLAG(tileset->flags, TMX_FLAG_CACHED))
+    if (TMX_HAS_FLAG(tileset->flags, TMX_FLAG_CACHED))
     {
         tmxErrorMessage(TMX_ERR_INVALID_OPERATION, "Cannot free cached tileset.");
         return;
@@ -316,13 +316,13 @@ tmxFreeTileset(TMXtileset *tileset)
 void
 tmxFreeTemplate(TMXtemplate *template)
 {
-    if (TMX_FLAG(template->flags, TMX_FLAG_CACHED))
+    if (TMX_HAS_FLAG(template->flags, TMX_FLAG_CACHED))
     {
         tmxErrorMessage(TMX_ERR_INVALID_OPERATION, "Cannot free cached template.");
         return;
     }
 
-    if (template->tileset && !TMX_FLAG(template->tileset->flags, TMX_FLAG_CACHED))
+    if (template->tileset && !TMX_HAS_FLAG(template->tileset->flags, TMX_FLAG_CACHED))
         tmxFreeTileset(template->tileset);
 
     tmxFreeObject(template->object);

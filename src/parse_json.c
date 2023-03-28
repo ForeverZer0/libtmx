@@ -7,6 +7,9 @@
 
 static cJSON_Hooks jsonHooks = {tmxMalloc, tmxFree};
 
+static TMXobject *tmxJsonParseObject(TMXcontext *context, cJSON *obj);
+static TMXtileset *tmxJsonParseTileset(TMXcontext *context, cJSON *obj, TMXgid *firstGid);
+
 #ifdef TMX_WARN_UNHANDLED
 static void
 tmxUnhandledProperty(const char *parent, const char *propertyName)
@@ -130,16 +133,35 @@ tmxJsonParseProperties(TMXcontext *context, cJSON *array)
 static TMXtemplate *
 tmxJsonParseTemplate(TMXcontext *context, cJSON *obj)
 {
-    // TODO
-    return NULL;
+    TMXtemplate *template = TMX_ALLOC(TMXtemplate);
+    cJSON *child;
+
+    JSON_EACH_CHILD(obj, child)
+    {
+        if (STREQL(child->string, TMX_WORD_TYPE))
+        {
+            TMX_ASSERT(STREQL(child->valuestring, TMX_WORD_TEMPLATE));
+            continue;
+        }
+        else if (STREQL(child->string, TMX_WORD_TILESET))
+            template->tileset = tmxJsonParseTileset(context, child, &template->first_gid);
+        else if (STREQL(child->string, TMX_WORD_OBJECT))
+            template->object = tmxJsonParseObject(context, child);
+        else
+        {
+            tmxUnhandledProperty(TMX_WORD_TEMPLATE, child->string);
+        }
+    }
+
+    return template;
 }
 
 static struct TMXtext *
 tmxJsonParseObjectText(TMXcontext *context, cJSON *obj, TMXobject *object)
 {
     struct TMXtext *text = TMX_ALLOC(struct TMXtext);
-    TMX_ALIGN halign       = TMX_ALIGN_LEFT;
-    TMX_ALIGN valign       = TMX_ALIGN_TOP;
+    TMX_ALIGN halign     = TMX_ALIGN_LEFT;
+    TMX_ALIGN valign     = TMX_ALIGN_TOP;
     text->pixel_size     = 16;
     text->kerning        = TMX_TRUE;
     text->wrap           = TMX_TRUE;
@@ -822,7 +844,7 @@ tmxJsonParseTileset(TMXcontext *context, cJSON *obj, TMXgid *firstGid)
     {
         TMX_ASSERT(cJSON_IsArray(tiles));
 
-        size_t tileIndex     = 0;
+        size_t tileIndex      = 0;
         TMX_BOOL isCollection = (TMX_BOOL) tileset->columns == 0;
         tmxInitTilesetTiles(tileset, isCollection);
         cJSON_ArrayForEach(child, tiles) { tmxJsonParseTile(context, child, tileset->tiles, isCollection, tileIndex++); }
