@@ -6,11 +6,8 @@
 #define TMX_UTILS_H
 
 #include "tmx.h"
-#include <stddef.h>
-
-
-
 #include "tmx/memory.h"
+
 #define uthash_malloc(sz)    tmxMalloc(sz)
 #define uthash_free(ptr, sz) tmxFree(ptr)
 #include "uthash.h"
@@ -26,23 +23,8 @@ struct TMXproperties
  * @brief Allocates an object of the specified @a type with zeroed memory.
  * @param[in] type The type to allocate.
  * @return A pointer to the newly allocated object.
-*/
+ */
 #define TMX_ALLOC(type) ((type *) tmxCalloc(1, sizeof(type)))
-
-
-
-/**
- * @brief Tests for the presence of a flag in a bitfield.
- * @param value The value to test.
- * @param flag The flag to test the presence of.
- * @return A boolean result.
- */
-#define TMX_FLAG(value, flag) (((value) & (flag)) != 0)
-
-/**
- * @brief Make your compiler be quiet.
- */
-#define TMX_UNUSED(x) ((void) x)
 
 /**
  * @brief Emits an error of the specified type with a generic error message.
@@ -99,7 +81,7 @@ void tmxImageUserFree(TMXimage *image);
 
 /**
  * @brief Reads the contents of a file into a buffer.
- * 
+ *
  * @param[in] path The given path of the file.
  * @param[in] basePath An optional base path the @a path is relative to.
  * @return A buffer containing the contents of the file. The caller is responsible for freeing with @ref tmxFree.
@@ -108,13 +90,13 @@ char *tmxFileRead(const char *path, const char *basePath);
 
 /**
  * @brief Appends a value to an array, resizing as needed.
- * 
- * @param T The type used in the array. 
+ *
+ * @param T The type used in the array.
  * @param array The pointer to array of type @a T.
  * @param object An object of type @a T.
  * @param count The current number of items in the @a array.
  * @param capacity The current capacity of the @a array.
- * 
+ *
  * @note The @a array pointer, @a count, @a capacity may be modified.
  */
 #define tmxArrayPush(T, array, object, count, capacity)                                                                                    \
@@ -130,7 +112,7 @@ char *tmxFileRead(const char *path, const char *basePath);
 
 /**
  * @brief Marks the updating of an array as complete, trimming excess capacity as needed.
- * @param T The type used in the array. 
+ * @param T The type used in the array.
  * @param array The pointer to array of type @a T.
  * @param count The current number of items in the @a array.
  * @param capacity The current capacity of the @a array.
@@ -142,10 +124,9 @@ char *tmxFileRead(const char *path, const char *basePath);
             array = (T *) tmxRealloc(array, count * sizeof(T));                                                                            \
     } while (0)
 
-
 /**
  * @brief Update the values not explicitly defined to reflect those of a template object.
- * 
+ *
  * @param[in] dst The object to merge to.
  * @param[in] src The source object to copy values from.
  */
@@ -162,12 +143,12 @@ TMXproperties *tmxPropertiesDup(TMXproperties *properties);
 /**
  * @brief Merges two property hashes together. When the same key is found in both hashes, the @a dst hash
  * will be retain its value and not be overwritten.
- * 
+ *
  * @param dst The destination properties to merge to, or @c NULL to create a deep-copy of @a src.
  * @param src The source properties to merge.
- * 
+ *
  * @return The @a dst properties merged with @a src, or a copy of @a src if @a dst was @c NULL.
  */
-TMXproperties * tmxPropertiesMerge(TMXproperties *dst, TMXproperties *src);
+TMXproperties *tmxPropertiesMerge(TMXproperties *dst, TMXproperties *src);
 
 #endif /* TMX_UTILS_H */

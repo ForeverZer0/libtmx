@@ -1,7 +1,6 @@
 #include "cwalk.h"
 #include "internal.h"
 #include "parse.h"
-#include "tmx/cache.h"
 #include "tmx/compression.h"
 #include "internal.h"
 #include "tmx/xml.h"
@@ -247,22 +246,34 @@ tmxXmlParseObjectText(TMXcontext *context, TMXobject *obj)
         }
         else if (STREQL(name, TMX_WORD_BOLD))
         {
-            text->style |= TMX_FONT_STYLE_BOLD; // TODO: Unset if false
+            if (tmxParseBool(value))
+                text->style |= TMX_FONT_STYLE_BOLD;
+            else
+                text->style &= ~TMX_FONT_STYLE_BOLD;
             obj->flags |= (TMX_FLAG_FONT_STYLE | TMX_FLAG_FONT_BOLD);
         }
         else if (STREQL(name, TMX_WORD_ITALIC))
         {
-            text->style |= TMX_FONT_STYLE_ITALIC; // TODO: Unset if false
+            if (tmxParseBool(value))
+                text->style |= TMX_FONT_STYLE_ITALIC;
+            else
+                text->style &= ~TMX_FONT_STYLE_ITALIC;
             obj->flags |= (TMX_FLAG_FONT_STYLE | TMX_FLAG_FONT_ITALIC);
         }
         else if (STREQL(name, TMX_WORD_UNDERLINE))
         {
-            text->style |= TMX_FONT_STYLE_UNDERLINE; // TODO: Unset if false
+            if (tmxParseBool(value))
+                text->style |= TMX_FONT_STYLE_UNDERLINE;
+            else
+                text->style &= ~TMX_FONT_STYLE_UNDERLINE;
             obj->flags |= (TMX_FLAG_FONT_STYLE | TMX_FLAG_FONT_UNDERLINE);
         }
         else if (STREQL(name, TMX_WORD_STRIKEOUT))
         {
-            text->style |= TMX_FONT_STYLE_STRIKEOUT; // TODO: Unset if false
+            if (tmxParseBool(value))
+                text->style |= TMX_FONT_STYLE_STRIKEOUT;
+            else
+                text->style &= ~TMX_FONT_STYLE_STRIKEOUT;
             obj->flags |= (TMX_FLAG_FONT_STYLE | TMX_FLAG_FONT_STRIKEOUT);
         }
         else if (STREQL(name, TMX_WORD_KERNING))

@@ -1,4 +1,3 @@
-#include "tmx/memory.h"
 #include "internal.h"
 
 #ifdef TMX_DEBUG

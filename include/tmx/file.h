@@ -1,7 +1,7 @@
 #ifndef TMX_FILE_H
 #define TMX_FILE_H
 
-#include "types.h"
+#include "common.h"
 
 /**
  * @brief Prototype for a user-defined @c free function.
@@ -27,7 +27,7 @@ typedef const char *(*TMXreadfunc)(const char *path, const char *basePath, TMXus
  * @brief Sets a callback that can be used to load a file from a "virtual" filesystem. 
  * 
  * @details This can be used to resolve paths that cannot be found, or read from documents embedded in
- * your project that don't actually exist in the filesystem or otherwise not located as defined in the TMX.
+ * your project that don't actually exist in the filesystem or otherwise not located as defined in the document.
  * 
  * @param[in] read A callback that will be invoked to read the contents of a file.
  * @param[in] free The free function that will be called on the pointer when it is no longer needed, or @c NULL if it does not freed.
@@ -44,7 +44,7 @@ void tmxFileReadCallback(TMXreadfunc read, TMXfreefunc free, TMXuserptr user);
 size_t tmxFileDirectory(const char *path);
 
 /**
- * @brief Builds an absolute path from two paths: a relative path, and the an optional base path it is relative to.
+ * @brief Creates an absolute path.
  * 
  * @param[in] path The path to ensure is absolute. May be relative or absolute.
  * @param[in] basePath An optional base path that @a path is relative to.

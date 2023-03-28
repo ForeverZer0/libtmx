@@ -1,8 +1,6 @@
 #include "internal.h"
-#include "tmx/cache.h"
 #include "tmx/compression.h"
 #include "tmx/memory.h"
-#include "tmx/types.h"
 #include "tmx/xml.h"
 #include <errno.h>
 #include <stdio.h>
@@ -12,6 +10,29 @@
 static TMXimageloadfunc imageLoad;
 static TMXimagefreefunc imageFree;
 static TMXuserptr imageUserPtr;
+
+TMXcolor tmxColor(const TMXcolorf *color)
+{
+    TMXcolor packed = {0};
+    if (!color)
+        return packed;
+
+    packed.r = (uint8_t) (color->r * 255.0f);
+    packed.g = (uint8_t) (color->g * 255.0f);
+    packed.b = (uint8_t) (color->b * 255.0f);
+    packed.a = (uint8_t) (color->a * 255.0f);
+    return packed;
+}
+
+TMXcolorf tmxColorF(TMXcolor color)
+{
+    TMXcolorf vector;
+    vector.r = ((float) color.r / 255.0f);
+    vector.g = ((float) color.g / 255.0f);
+    vector.b = ((float) color.b / 255.0f);
+    vector.a = ((float) color.a / 255.0f);
+    return vector;
+}
 
 void
 tmxImageCallback(TMXimageloadfunc loadFunc, TMXimagefreefunc freeFunc, TMXuserptr user)
@@ -245,13 +266,12 @@ tmxStringCopy(const char *input, size_t inputSize)
 
 static TMX_INLINE TMXtile *tmxGetTile(TMXmap *map, TMXgid gid)
 {
-    TMXgid clean = gid & TMX_GID_MASK;
     for (size_t i = 0; i < map->tileset_count; i++)
     {
         // TODO: Tilesets are ordered by first GID, but maybe still check range Just-In-Case™ 
         // What if someone sorts the list to suit their own needs?
-        if (clean >= map->tilesets[i].first_gid)
-            return &map->tilesets[i].tileset->tiles[clean - map->tilesets[i].first_gid];
+        if (gid >= map->tilesets[i].first_gid)
+            return &map->tilesets[i].tileset->tiles[gid - map->tilesets[i].first_gid];
     }
     return NULL;
 }
@@ -277,10 +297,10 @@ tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfun
             for (i = 0; i < count; i++)
             {
                 gid = layer->data.tiles[i];
-                tile = tmxGetTile(map, gid);
+                tile = tmxGetTile(map, gid & TMX_GID_TILE_MASK);
                 if (tile || includeEmpty)
                 {
-                    if (!foreachFunc(map, layer, tile, i % width, i / width, gid & ~TMX_GID_MASK))
+                    if (!foreachFunc(map, layer, tile, i % width, i / width, gid))
                         break;
                 }
             }
@@ -289,10 +309,10 @@ tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfun
             for (i = 0; i < count; i++)
             {
                 gid = layer->data.tiles[i];
-                tile = tmxGetTile(map, gid);
+                tile = tmxGetTile(map, gid & TMX_GID_TILE_MASK);
                 if (tile || includeEmpty)
                 {
-                    if (!foreachFunc(map, layer, tile, i % width, height - (i / width), gid & ~TMX_GID_MASK))
+                    if (!foreachFunc(map, layer, tile, i % width, height - (i / width), gid))
                         break;
                 }
             }
@@ -301,10 +321,10 @@ tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfun
             for (i = 0; i < count; i++)
             {
                 gid = layer->data.tiles[i];
-                tile = tmxGetTile(map, gid);
+                tile = tmxGetTile(map, gid & TMX_GID_TILE_MASK);
                 if (tile || includeEmpty)
                 {
-                    if (!foreachFunc(map, layer, tile, width - (i % width), i / width, gid & ~TMX_GID_MASK))
+                    if (!foreachFunc(map, layer, tile, width - (i % width), i / width, gid))
                         break;
                 }
             }
@@ -313,10 +333,10 @@ tmxTileForeach(TMXmap *map, TMXlayer *layer, TMXbool includeEmpty, TMXforeachfun
             for (i = 0; i < count; i++)
             {
                 gid = layer->data.tiles[i];
-                tile = tmxGetTile(map, gid);
+                tile = tmxGetTile(map, gid & TMX_GID_TILE_MASK);
                 if (tile || includeEmpty)
                 {
-                    if (!foreachFunc(map, layer, tile, width - (i % width), height - (i / width), gid & ~TMX_GID_MASK))
+                    if (!foreachFunc(map, layer, tile, width - (i % width), height - (i / width), gid))
                         break;
                 }
             }
@@ -331,7 +351,7 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
     // Because the XML parser is forward-only reading, we can't first check for a template, copy it, and then only
     // modify the duplicated object according to what it overrides. Instead, the object is defined normally
     // and then each field checked. If the field was not explicitly defined in the object, it is assigned the
-    // value from its template. This is not ideal.
+    // value from its template. 
 
     dst->type = src->type;
 
@@ -358,14 +378,19 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
 
         if (!dst->text->string && !TMX_FLAG(dst->flags, TMX_FLAG_TEXT) && src->text->string)
             dst->text->string = tmxStringDup(src->text->string);
+
         if (!dst->text->font && !TMX_FLAG(dst->flags, TMX_FLAG_FONT) && src->text->font)
             dst->text->font = tmxStringDup(src->text->font);
+
         if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_BOLD) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_BOLD))
             dst->text->style |= TMX_FONT_STYLE_BOLD;
+
         if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_ITALIC) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_ITALIC))
             dst->text->style |= TMX_FONT_STYLE_ITALIC;
+
         if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_UNDERLINE) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_UNDERLINE))
             dst->text->style |= TMX_FONT_STYLE_UNDERLINE;
+
         if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_STRIKEOUT) && TMX_FLAG(src->text->style, TMX_FONT_STYLE_STRIKEOUT))
             dst->text->style |= TMX_FONT_STYLE_STRIKEOUT;
 
@@ -376,6 +401,7 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
             else
                 dst->text->align |= TMX_ALIGN_LEFT;
         }
+        
         if (!TMX_FLAG(dst->flags, TMX_FLAG_VALIGN))
         {
             if (TMX_FLAG(src->flags, TMX_FLAG_VALIGN))
@@ -383,10 +409,13 @@ tmxObjectMergeTemplate(TMXobject *dst, TMXobject *src)
             else
                 dst->text->align |= TMX_ALIGN_TOP;
         }
+
         if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_SIZE))
             dst->text->pixel_size = src->text->pixel_size;
+
         if (!TMX_FLAG(dst->flags, TMX_FLAG_FONT_KERNING))
             dst->text->kerning = src->text->kerning;
+
         if (!TMX_FLAG(dst->flags, TMX_FLAG_WORD_WRAP))
             dst->text->wrap = src->text->wrap;
     }

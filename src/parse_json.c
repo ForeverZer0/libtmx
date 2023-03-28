@@ -2,7 +2,6 @@
 #include "cJSON.h"
 #include "internal.h"
 #include "parse.h"
-#include "tmx/cache.h"
 #include "tmx/compression.h"
 #include <ctype.h>
 
@@ -968,5 +967,3 @@ tmxParseTemplateJson(TMXcontext *context)
     cJSON_Delete(context->json);
     return template;
 }
-
-// TODO: Reimplement using cache on load

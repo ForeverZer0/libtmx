@@ -225,4 +225,39 @@ TMXenum tmxParseCompression(const char *value);
  */
 void tmxInitTilesetTiles(TMXtileset *tileset, TMXbool isCollection);
 
+/**
+ * @brief Retrieves the number of values in the CSV-encoded @a input string.
+ *
+ * @param[in] input The CSV-encoded string to query.
+ * @param[in] inputSize The size of the @a input, in bytes.
+ *
+ * @return The number of elements defined in the @a input string.
+ */
+size_t tmxCsvCount(const char *input, size_t inputSize);
+
+/**
+ * @brief Decodes a CSV-encoded string of tile IDs into an array.
+ *
+ * @param[in] input The CSV-encoded string to decode.
+ * @param[in] inputSize The size of the @a input string, in bytes.
+ * @param[in,out] output A pointer to array of tile IDs to receive the output.
+ * @param[in] outputCount The maximum number of tile IDs that can be written to the @a output array.
+ *
+ * @return The number of tile IDs written to the @a output array.
+ */
+size_t tmxCsvDecode(const char *input, size_t inputSize, TMXgid *output, size_t outputCount);
+
+/**
+ * @brief Takes a Base64-encoded string and decodes and decompresses it to an @a output buffer.
+ *
+ * @param[in] input The Base64-encoded buffer to decode and (optionally) decompress.
+ * @param[in] inputSize The size of the @a input buffer, in bytes.
+ * @param[in,out] output A buffer allocated with sufficient size to receive the decompressed tile data.
+ * @param[in] outputCount The maximum number of elements that can be written to the @a output array.
+ * @param[in] compression A enumeration value indicating the type of compression used, if any.
+ *
+ * @return The number of tile IDs written to the @a output buffer.
+ */
+size_t tmxInflate(const char *input, size_t inputSize, TMXgid *output, size_t outputCount, TMXenum compression);
+
 #endif /* TMX_PARSE_H */

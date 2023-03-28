@@ -1,7 +1,32 @@
+/**
+ * @file memory.h
+ * @author Eric Freed
+ * @brief Provides functions for memory allocation and deallocation.
+ * @version 0.1
+ * @date 2023-03-28
+ * 
+ * @details To provide your own memory allocators, the following macros can be defined prior to including any headers
+ * of this library.
+ * 
+ * * TMX_MALLOC(size, user)
+ * * TMX_CALLOC(elemCount, elemSize, user)
+ * * TMX_REALLOC(previous, size, user)
+ * * TMX_FREE(ptr, user)
+ * 
+ * At a bare minimum, the @c TMX_REALLOC macro must be defined if you wish to provide your own allocations, as the other
+ * macros will automatically have their functionality provided through it if they are not defined. That stated, it 
+ * is optimal to provide them all if your implementation has them available. It is also noteworthy that freeing 
+ * memory with the use of only @c realloc is not considered portable, and typically associated with glib. 
+ * 
+ * You really want to at least provide @c TMX_REALLOC and @c TMX_FREE in most scenarios.
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
 #ifndef TMX_MEMORY_H
 #define TMX_MEMORY_H
 
-#include "types.h"
+#include "common.h"
 
 /**
  * @brief Assigns a user-pointer that will be passed to custom memory allocation/deallocation functions.

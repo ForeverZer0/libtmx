@@ -1,7 +1,6 @@
 #include "parse.h"
 #include "cwalk.h"
 #include "internal.h"
-#include "tmx/cache.h"
 #include <ctype.h>
 
 TMX_COLOR_T

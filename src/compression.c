@@ -16,7 +16,7 @@
 
 #define TMX_GZIP_HEADER_SIZE 10
 
-TMXbool
+int
 tmxBase64IsValid(const char *input, size_t inputSize)
 {
     size_t i;
