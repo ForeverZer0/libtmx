@@ -57,7 +57,7 @@ JSON_FLOAT(const cJSON *obj, const char *propName)
 #define JSON_BOOL(obj, prop) (JSON_INTEGER((obj), (prop), TMX_FALSE) ? TMX_TRUE : TMX_FALSE)
 
 static TMX_INLINE void
-tmxParsePoints(TMXcontext *context, cJSON *polygon, struct TMXcoords *coords)
+tmxParsePoints(cJSON *polygon, struct TMXcoords *coords)
 {
     if (!cJSON_IsArray(polygon))
     {
@@ -127,6 +127,8 @@ tmxJsonParseProperties(TMXcontext *context, cJSON *array)
 
         HASH_ADD_KEYPTR(hh, properties, entry->key, strlen(entry->key), entry);
     }
+
+    tmxPropertiesUpdateLinkage(properties);
     return properties;
 }
 
@@ -159,6 +161,8 @@ tmxJsonParseTemplate(TMXcontext *context, cJSON *obj)
 static struct TMXtext *
 tmxJsonParseObjectText(TMXcontext *context, cJSON *obj, TMXobject *object)
 {
+    TMX_UNUSED(context);
+
     struct TMXtext *text = TMX_ALLOC(struct TMXtext);
     TMX_ALIGN halign     = TMX_ALIGN_LEFT;
     TMX_ALIGN valign     = TMX_ALIGN_TOP;
@@ -323,25 +327,25 @@ tmxJsonParseObject(TMXcontext *context, cJSON *obj)
         }
         else if (STREQL(name, TMX_WORD_POINT) && child->valueint)
         {
-            TMX_ASSERT(object->type == TMX_UNSPECIFIED);
+            TMX_ASSERT(object->type == TMX_OBJECT_DEFAULT);
             object->type = TMX_OBJECT_POINT;
         }
         else if (STREQL(name, TMX_WORD_ELLIPSE) && child->valueint)
         {
-            TMX_ASSERT(object->type == TMX_UNSPECIFIED);
+            TMX_ASSERT(object->type == TMX_OBJECT_DEFAULT);
             object->type = TMX_OBJECT_ELLIPSE;
         }
         else if (STREQL(name, TMX_WORD_POLYGON))
         {
-            TMX_ASSERT(object->type == TMX_UNSPECIFIED);
+            TMX_ASSERT(object->type == TMX_OBJECT_DEFAULT);
             object->type = TMX_OBJECT_POLYGON;
-            tmxParsePoints(context, child, &object->poly);
+            tmxParsePoints(child, &object->poly);
         }
         else if (STREQL(name, TMX_WORD_POLYLINE))
         {
-            TMX_ASSERT(object->type == TMX_UNSPECIFIED);
+            TMX_ASSERT(object->type == TMX_OBJECT_DEFAULT);
             object->type = TMX_OBJECT_POLYLINE;
-            tmxParsePoints(context, child, &object->poly);
+            tmxParsePoints(child, &object->poly);
         }
         else if (STREQL(name, TMX_WORD_TEMPLATE))
         {
@@ -351,7 +355,7 @@ tmxJsonParseObject(TMXcontext *context, cJSON *obj)
         }
         else if (STREQL(name, TMX_WORD_TEXT))
         {
-            TMX_ASSERT(object->type == TMX_UNSPECIFIED);
+            TMX_ASSERT(object->type == TMX_OBJECT_DEFAULT);
             object->type = TMX_OBJECT_TEXT;
             object->text = tmxJsonParseObjectText(context, child, object);
         }
@@ -395,7 +399,8 @@ tmxJsonParseTileData(cJSON *obj, TMX_ENCODING encoding, TMX_COMPRESSION compress
 
     if (cJSON_IsArray(obj))
     {
-        TMX_ASSERT(count == cJSON_GetArraySize(obj));
+        TMX_ASSERT(encoding == TMX_ENCODING_CSV);
+        TMX_ASSERT(count == (size_t) cJSON_GetArraySize(obj));
         cJSON_ArrayForEach(child, obj) gids[i++] = (TMXgid) child->valueint;
         return gids;
     }
@@ -710,7 +715,11 @@ tmxJsonParseTile(TMXcontext *context, cJSON *obj, TMXtile *tiles, TMX_BOOL isCol
         }
     }
 
-    // TODO: Set default size if image defined and not size defined
+    if (tile->image)
+        tmxImageUserLoad(tile->image, context->basePath);
+
+    if (tile->image && !tile->rect.w && !tile->rect.h)
+        tile->rect.size = tile->image->size;
 }
 
 static TMXtileset *
@@ -912,23 +921,23 @@ tmxJsonParseMap(TMXcontext *context, cJSON *obj)
         }
         else if (STREQL(name, TMX_WORD_LAYERS))
         {
+            i = 0;
             TMX_ASSERT(cJSON_IsArray(child));
             map->layer_count = (size_t) cJSON_GetArraySize(child);
             if (!map->layer_count)
                 continue;
 
-            i           = 0;
             map->layers = tmxMalloc(map->layer_count * sizeof(TMXlayer *));
             cJSON_ArrayForEach(arrayItem, child) { map->layers[i++] = tmxJsonParseLayer(context, arrayItem); }
         }
         else if (STREQL(name, TMX_WORD_TILESETS))
         {
+            i = 0;
             TMX_ASSERT(cJSON_IsArray(child));
             map->tileset_count = (size_t) cJSON_GetArraySize(child);
             if (!map->tileset_count)
                 continue;
 
-            i = 0;
             TMXmaptileset *mapTileset;
             map->tilesets = tmxMalloc(map->tileset_count * sizeof(TMXmaptileset));
             cJSON_ArrayForEach(arrayItem, child)

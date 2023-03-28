@@ -37,7 +37,7 @@
 
 #ifndef TMX_ASSERT
 #include <assert.h>
-#define TMX_ASSERT(expr) assert(expr)
+#define TMX_ASSERT assert
 #endif
 
 #ifdef TMX_VECTOR_COLOR

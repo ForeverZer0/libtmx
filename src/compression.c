@@ -118,7 +118,7 @@ tmxInflateGzip(const void *input, size_t inputSize, void *output, size_t outputS
         return 0;
     }
     size_t result = tinfl_decompress_mem_to_mem(output, outputSize, &input[TMX_GZIP_HEADER_SIZE], inputSize - TMX_GZIP_HEADER_SIZE, 0);
-    if (result == TINFL_STATUS_FAILED)
+    if (result == (size_t) TINFL_STATUS_FAILED)
     {
         tmxError(TMX_ERR_FORMAT);
         return 0;
@@ -130,7 +130,7 @@ size_t
 tmxInflateZlib(const void *input, size_t inputSize, void *output, size_t outputSize)
 {
     size_t result = tinfl_decompress_mem_to_mem(output, outputSize, input, inputSize, TINFL_FLAG_PARSE_ZLIB_HEADER);
-    if (result == TINFL_STATUS_FAILED)
+    if (result == (size_t) TINFL_STATUS_FAILED)
     {
         tmxError(TMX_ERR_FORMAT);
         return 0;

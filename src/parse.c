@@ -45,7 +45,7 @@ tmxParseColor(const char *str)
 static void
 tmxErrorInvalidEnum(const char *enumName, const char *value)
 {
-    tmxErrorFormat(TMX_ERR_VALUE, "Unrecognized \"%s\" \"%s\" specified.", value ? value : ""); // TODO
+    tmxErrorFormat(TMX_ERR_VALUE, "Unrecognized \"%s\" value for \"%s\" enumeration specified.", value ? value : "", enumName);
 }
 
 TMX_PROPERTY_TYPE
@@ -101,31 +101,31 @@ tmxParseRenderOrder(const char *value)
         return TMX_RENDER_LEFT_UP;
 
     tmxErrorInvalidEnum("render order", value);
-    return TMX_UNSPECIFIED;
+    return TMX_RENDER_RIGHT_DOWN;
 }
 
-TMX_STAGGER_AXIS
+TMX_AXIS
 tmxParseStaggerAxis(const char *value)
 {
-    if (STREQL(value, "x"))
-        return TMX_STAGGER_AXIS_X;
-    if (STREQL(value, "y"))
-        return TMX_STAGGER_AXIS_Y;
+    if (STREQL(value, TMX_WORD_Y))
+        return TMX_AXIS_Y;
+    if (STREQL(value, TMX_WORD_X))
+        return TMX_AXIS_X;
 
     tmxErrorInvalidEnum("stagger axis", value);
-    return TMX_UNSPECIFIED;
+    return TMX_AXIS_Y;
 }
 
-TMX_STAGGER_INDEX
+TMX_INDEX
 tmxParseStaggerIndex(const char *value)
 {
-    if (STREQL(value, "even"))
-        return TMX_STAGGER_INDEX_EVEN;
     if (STREQL(value, "odd"))
-        return TMX_STAGGER_INDEX_ODD;
-
+        return TMX_INDEX_ODD;
+    if (STREQL(value, "even"))
+        return TMX_INDEX_EVEN;
+    
     tmxErrorInvalidEnum("stagger index", value);
-    return TMX_UNSPECIFIED;
+    return TMX_INDEX_ODD;
 }
 
 TMX_LAYER_TYPE
@@ -140,8 +140,8 @@ tmxParseLayerType(const char *value, TMX_BOOL infinite)
     if (STREQL(value, "group"))
         return TMX_LAYER_GROUP;
 
-    // In theory this should be unreachable
-    return TMX_UNSPECIFIED;
+    tmxErrorInvalidEnum("layer type", value);
+    return TMX_LAYER_NONE;
 }
 
 TMX_DRAW_ORDER
@@ -394,6 +394,9 @@ tmxParseMapImpl(const char *text, const char *filename, TMXcache *cache, TMX_FOR
     TMXcontext context;
 
     tmxContextInit(&context, text, filename, cache);
+    if (format == TMX_FORMAT_AUTO)
+        format = tmxDetectFormat(context.text);
+
     switch (format)
     {
         case TMX_FORMAT_JSON: map = tmxParseMapJson(&context); break;
@@ -416,9 +419,6 @@ tmxParseMap(const char *text, TMXcache *cache, TMX_FORMAT format)
         tmxError(TMX_ERR_VALUE);
         return NULL;
     }
-
-    if (format == TMX_FORMAT_AUTO)
-        format = tmxDetectFormat(text);
 
     return tmxParseMapImpl(text, NULL, cache, format);
 }
@@ -455,6 +455,9 @@ tmxParseTilesetImpl(const char *text, const char *filename, TMXcache *cache, TMX
         return tileset;
 
     tmxContextInit(&context, text, filename, cache);
+    if (format == TMX_FORMAT_AUTO)
+        format = tmxDetectFormat(context.text);
+
     switch (format)
     {
         case TMX_FORMAT_JSON: tileset = tmxParseTilesetJson(&context); break;
@@ -486,9 +489,6 @@ tmxParseTileset(const char *text, TMXcache *cache, TMX_FORMAT format)
         tmxError(TMX_ERR_VALUE);
         return NULL;
     }
-
-    if (format == TMX_FORMAT_AUTO)
-        format = tmxDetectFormat(text);
 
     return tmxParseTilesetImpl(text, NULL, cache, format);
 }
@@ -525,6 +525,9 @@ tmxParseTemplateImpl(const char *text, const char *filename, TMXcache *cache, TM
         return template;
 
     tmxContextInit(&context, text, filename, cache);
+    if (format == TMX_FORMAT_AUTO)
+        format = tmxDetectFormat(context.text);
+
     switch (format)
     {
         case TMX_FORMAT_JSON: template = tmxParseTemplateJson(&context); break;
@@ -549,9 +552,6 @@ tmxParseTemplate(const char *text, TMXcache *cache, TMX_FORMAT format)
         tmxError(TMX_ERR_VALUE);
         return NULL;
     }
-
-    if (format == TMX_FORMAT_AUTO)
-        format = tmxDetectFormat(text);
 
     return tmxParseTemplateImpl(text, NULL, cache, format);
 }

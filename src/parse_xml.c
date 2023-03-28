@@ -125,11 +125,9 @@ tmxXmlParseProperties(TMXcontext *context)
 
         entry->key = property->name;
         HASH_ADD_KEYPTR(hh, properties, entry->key, strlen(entry->key), entry);
-
-        TMXproperties *previous = entry->hh.prev;
-        if (previous)
-            previous->value.next = property;
     }
+
+    tmxPropertiesUpdateLinkage(properties);
     return properties;
 }
 

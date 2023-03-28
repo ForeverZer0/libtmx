@@ -144,14 +144,14 @@ TMX_RENDER_ORDER tmxParseRenderOrder(const char *value);
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMX_STAGGER_AXIS tmxParseStaggerAxis(const char *value);
+TMX_AXIS tmxParseStaggerAxis(const char *value);
 
 /**
  * @brief Parses a "staggerindex" value into an enumeration.
  * @param[in] value The null-terminated string to parse.
  * @return The enumeration value.
  */
-TMX_STAGGER_INDEX tmxParseStaggerIndex(const char *value);
+TMX_INDEX tmxParseStaggerIndex(const char *value);
 
 /**
  * @brief Parses the name of a layer type into an enumeration.

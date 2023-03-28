@@ -103,7 +103,7 @@ tmxXmlReadElement(TMXxmlreader *xml, const char **outName, size_t *outNameSize)
 TMX_BOOL
 tmxXmlReadStringContents(TMXxmlreader *xml, const char **contents, size_t *contentsSize, int trim)
 {
-    int c;
+    size_t c;
     tmxXmlResetBuffer(xml);
 
     if (xml->token != YXML_CONTENT)
@@ -123,7 +123,7 @@ tmxXmlReadStringContents(TMXxmlreader *xml, const char **contents, size_t *conte
     *xml->ptr = '\0';
 
     // If only whitespace, don't consider this valid content.
-    if (strspn(xml->buffer, " \n\r\t") == xml->ptr - xml->buffer)
+    if ((ptrdiff_t) strspn(xml->buffer, " \n\r\t") == (ptrdiff_t)(xml->ptr - xml->buffer))
         return TMX_FALSE;
 
     if (trim)
@@ -167,7 +167,7 @@ tmxXmlReadAttr(TMXxmlreader *xml, const char **name, const char **value)
 
     // Reset the write-pointer to the beginning of the buffer.
     xml->ptr = xml->buffer;
-    int c;
+    size_t c;
     while (xml->str)
     {
         switch (xml->token)
