@@ -83,6 +83,7 @@ tmxPropertiesDup(TMXproperties *properties)
         HASH_ADD_KEYPTR(hh, result, dst->key, strlen(dst->key), dst);
     }
 
+    tmxPropertiesUpdateLinkage(result);
     return result;
 }
 
@@ -112,5 +113,20 @@ tmxPropertiesMerge(TMXproperties *dst, TMXproperties *src)
         HASH_ADD_KEYPTR(hh, dst, dstProp->key, strlen(dstProp->key), dstProp);
     }
 
+    tmxPropertiesUpdateLinkage(dst);
     return dst;
+}
+
+void
+tmxPropertiesUpdateLinkage(TMXproperties *properties)
+{
+    if (!properties)
+        return;
+
+    TMXproperties *entry, *temp;
+    HASH_ITER(hh, properties, entry, temp)
+    {
+        entry->value.prev = entry->hh.prev ? &((TMXproperties*)(entry->hh.prev))->value : NULL;
+        entry->value.next = entry->hh.next ? &((TMXproperties*)(entry->hh.next))->value : NULL;
+    }
 }

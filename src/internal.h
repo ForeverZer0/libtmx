@@ -157,4 +157,11 @@ TMXproperties *tmxPropertiesDup(TMXproperties *properties);
  */
 TMXproperties *tmxPropertiesMerge(TMXproperties *dst, TMXproperties *src);
 
+/**
+ * @brief Updates the previous/next fields of each property after insertion/deletion.
+ * 
+ * @param[in] properties The properties hash to update. 
+ */
+void tmxPropertiesUpdateLinkage(TMXproperties *properties);
+
 #endif /* TMX_UTILS_H */
